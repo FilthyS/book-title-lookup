@@ -25,9 +25,9 @@ Throughout this document, "Resolved Work", "Source Record", "cache entry", "stal
 
 This document separates:
 
-- **G 鈥?Documented guarantee**: a statement made by a primary reference such as the Deno manual/API, the JSR `@std` documentation, or the cited Microsoft, POSIX, Apple, or freedesktop specification.
-- **O 鈥?Observed behavior**: behavior established from the repository state and product documents read for this issue. No experimental probes of Deno internals, filesystem behavior, or third-party APIs were run for this document. Statements not found in a cited primary source are never presented as probe results.
-- **I 鈥?Engineering inference**: a reasoned conclusion from documented guarantees, product constraints, and the project's local single-user threat model. Inferences are labeled and are the smallest number needed to choose a baseline.
+- **G — Documented guarantee**: a statement made by a primary reference such as the Deno manual/API, the JSR `@std` documentation, or the cited Microsoft, POSIX, Apple, or freedesktop specification.
+- **O — Observed behavior**: behavior established from the repository state and product documents read for this issue. No experimental probes of Deno internals, filesystem behavior, or third-party APIs were run for this document. Statements not found in a cited primary source are never presented as probe results.
+- **I — Engineering inference**: a reasoned conclusion from documented guarantees, product constraints, and the project's local single-user threat model. Inferences are labeled and are the smallest number needed to choose a baseline.
 
 All citations were retrieved on **2026-09-05**. Deno facilities are evaluated against the stable Deno 2.9 runtime and the stable standard-library line documented at that date.
 
@@ -58,9 +58,9 @@ Deno's granular environment permission grants access by variable name [1, 2]. `D
 
 Precedence rules for the cache root:
 
-1. Explicit cache override 鈥?product `BOOK_TITLE_CACHE_DIR` (and a future CLI flag above it).
-2. Platform cache environment inputs 鈥?`XDG_CACHE_HOME` on Linux, none on macOS, `LOCALAPPDATA` on Windows.
-3. Platform fallback 鈥?`~/.cache` on Linux, `~/Library/Caches` on macOS, derived AppData Local on Windows.
+1. Explicit cache override — product `BOOK_TITLE_CACHE_DIR` (and a future CLI flag above it).
+2. Platform cache environment inputs — `XDG_CACHE_HOME` on Linux, none on macOS, `LOCALAPPDATA` on Windows.
+3. Platform fallback — `~/.cache` on Linux, `~/Library/Caches` on macOS, derived AppData Local on Windows.
 4. If the active platform cannot produce a usable base directory, the locator returns a typed `unsupported environment` failure rather than silently selecting `/tmp`, the working directory, or the executable directory.
 
 A relative `BOOK_TITLE_CACHE_DIR` is rejected as invalid configuration; cache roots are absolute paths after resolution. The values of `HOME`, `XDG_*`, and the Windows AppData variables are not product settings. A user who overrides them is deliberately relocating the platform baseline; the locator must resolve the override once at process start, never re-read it mid-session, and never mirror it into domain code (`I`).
@@ -73,14 +73,14 @@ Guideline for the baseline:
 
 - Create each directory as `mode 0o700`, recursive where needed [10]. `mode` is applied only where the platform models POSIX modes; Windows directories inherit the ACL of the containing per-user profile [10, 17].
 - Do not `chmod` an already-existing directory. A user may have chosen custom permissions intentionally; the application only reports and refuses unsafe states that it defines, such as a world-writable cache root.
-- Resolve and canonicalize the chosen root after creation and before opening files; the application verifies that an operation path still begins with the canonical root prefix at the persistence seam.
+- Resolve and canonicalize the chosen root after creation and before opening files. At the persistence seam, verify containment by computing a path relative to that root and rejecting absolute results and any `..` segment; a raw string-prefix check would incorrectly accept a sibling such as `cache-evil`.
 - On Windows, relying on the per-user AppData inheritance is sufficient for a local single-user tool (`O` threat model: no multi-user or hostile-local-user requirement appears in the MVP).
 
 These security rules address the "directory creation/security" part of the question without pretending Deno provides Windows ACL editing.
 
 ### 3.4 Atomic file replacement
 
-The design goal is: readers of an entry see either the complete previous entry or the complete new entry, never a partial entry, and a crash does not leave a truncated entry at the final path.
+The design goal is: readers of an entry see either the complete previous entry or the complete new entry, never a partial entry, and a process crash does not leave a truncated entry at the final path.
 
 Deno provides the building blocks, not a packaged whole-file atomic writer:
 
@@ -105,8 +105,8 @@ The durable-write procedure chosen as the baseline is:
 
 Because Deno exposes no portable directory-descriptor sync in the documented stable APIs reviewed (`O`: no such entry in the Deno API or `@std` references), the procedure cannot, from documentation alone, claim crash-durable *preservation of the rename itself* on every filesystem. POSIX documents that `fsync` applies to file data and metadata of the file, not to the parent directory entry [23]. The strongest honest guarantee is therefore:
 
-- **G (crash safety of the entry object)**: after a crash, the final path contains either the complete old entry or the complete new entry, because the last step is a rename of a fully written, flushed file. A crash before the rename leaves at most an orphaned temp file.
-- **I (durability of the rename)**: whether the renamed directory entry itself survives a power loss depends on filesystem journaling and directory metadata flushing, which the project cannot control through the documented Deno surface. The observable consequence is a possible lost *last* cache write that manifests as a cache miss, never as a truncated entry. This is acceptable for a cache.
+- **I (process-crash safety of the entry object)**: absent a machine or storage failure, terminating the writer before or after the rename should leave the final path pointing to a complete old or new entry. Termination before the rename may also leave an orphaned temp file. The cross-platform test matrix must verify this inference, especially on Windows.
+- **I (power-loss durability of the rename)**: whether the renamed directory entry itself survives a power loss depends on filesystem journaling and directory metadata flushing, which the project cannot control through the documented Deno surface. The application therefore does not promise that a final path always survives sudden power loss; a missing entry is a cache miss and a refetch. This is acceptable for a cache.
 - **G (no torn reads)**: readers never observe a half-written final entry.
 - **I (Windows readers)**: a reader should open, read the full small JSON entry, and close promptly; it must not hold a write handle across the replace. This makes Windows behavior converge on the POSIX reader model.
 
@@ -178,7 +178,7 @@ The locator module must be the only code that reads platform environment variabl
 Deno documents that permissions can be granted per permission class and that environment and network permissions can be narrowed by name/host [1, 2]. Compiled executables bake those grants at compile time; interactive runtime prompt behavior is not relied upon in non-interactive automation [3]. Least-privilege operation therefore means enumerating exactly:
 
 - Environment variable names: the product list plus the platform list in Section 3.2. For the MVP, `BOOK_TITLE_GOOGLE_API_KEY` is excluded because it is never read.
-- Network hosts: only the catalog hosts the MVP actually contacts 鈥?`openlibrary.org` and its search host, and `wikidata.org`, `www.wikidata.org`, and `query.wikidata.org` where applicable. Host allowlists are exact, not suffix-globbed.
+- Network hosts: only the catalog hosts the MVP actually contacts — `openlibrary.org` and its search host, and `wikidata.org`, `www.wikidata.org`, and `query.wikidata.org` where applicable. Host allowlists are exact, not suffix-globbed.
 - Read/write paths for `deno run`: the config dir and the cache dir resolved for the current process, expressed as precise absolute path grants.
 
 For `deno run`, the manifest is fully enforceable, and tests run with a manifest that grants only the fixture directories plus the exact environment names. This is the primary least-privilege boundary for development, CI, and fixture-backed tests.
@@ -188,7 +188,7 @@ For `deno compile`, Deno resolves path allowlists at compile time [3]. A release
 - The persistence layer routes every filesystem operation through a narrow sealed seam (Section 3.12). The seam always re-canonicalizes and re-checks that the target path is beneath one of the two resolved roots, so the application never writes outside its declared footprint by mistake regardless of the process-level grant.
 - Product documentation will state that source execution and self-compiled builds use exact path grants, and that prebuilt release binaries (Issue #10) must either (a) wait for a Deno path-denial/placeholder facility that allows runtime-scoped path grants, or (b) accept the documented broader compile-time filesystem grant limited by the sealed seam and by denied environment/network surfaces. Option (b) is a release decision, not a Core decision; #10 owns it. Environment and network grants remain narrow in every artifact.
 
-The compiled manifest itself 鈥?even under option (b) 鈥?never includes `-A` semantics: environment stays limited to the enumerated names and network to the enumerated hosts. Those narrow surfaces survive compilation [1, 2, 3].
+The compiled manifest itself — even under option (b) — never includes `-A` semantics: environment stays limited to the enumerated names and network to the enumerated hosts. Those narrow surfaces survive compilation [1, 2, 3].
 
 Known documented Deno behaviors relevant to failure outcomes:
 
@@ -199,13 +199,13 @@ Known documented Deno behaviors relevant to failure outcomes:
 
 The file/cache seam distinguishes, as typed outcomes:
 
-- `stored` 鈥?entry written and renamed.
-- `hit_fresh` / `hit_stale` 鈥?complete entry available with its freshness metadata; stale is only returned when allowed (offline or explicit user tolerance) and is always labeled.
-- `miss` 鈥?no entry; network refetch is legal.
-- `corrupt` 鈥?entry unreadable; quarantine/delete and refetch.
-- `permission_denied` 鈥?mapped to a diagnostic plus exit code rather than a bibliographic result.
-- `unsupported_environment` 鈥?no usable platform root.
-- `cancelled` 鈥?an AbortSignal reached the operation; no entry is half-written (the temp is removed or left for reclamation).
+- `stored` — entry written and renamed.
+- `hit_fresh` / `hit_stale` — complete entry available with its freshness metadata; stale is only returned when allowed (offline or explicit user tolerance) and is always labeled.
+- `miss` — no entry; network refetch is legal.
+- `corrupt` — entry unreadable; quarantine/delete and refetch.
+- `permission_denied` — mapped to a diagnostic plus exit code rather than a bibliographic result.
+- `unsupported_environment` — no usable platform root.
+- `cancelled` — an AbortSignal reached the operation; no entry is half-written (the temp is removed or left for reclamation).
 
 These map to the product's source-level outcomes ("partial", "all sources failed", "cancelled", and warnings), not to book outcomes such as candidates or Title Lookup results.
 
@@ -226,7 +226,7 @@ No production code appears in this document; the seams are described for ticket 
 3. Ensure directories with `Deno.mkdir`/`@std/fs/ensure-dir` at `0o700`; never repair existing permissions; canonicalize and verify every file operation stays beneath the resolved roots.
 4. Implement atomic entry writes with the documented procedure: same-directory unique temp file, write, flush (`Deno.FsFile.sync`), close, `Deno.rename`, Windows transient-failure retry with jitter.
 5. Do not use advisory locks, lock files, PID files, or any emulation. Use per-key in-flight deduplication inside one process and whole-file atomic replacement across processes. "Last complete writer wins" is the only cross-process guarantee.
-6. Treat crash recovery as a cache problem: complete old/new entries survive; orphaned temps are reclaimed when old; a lost final rename is a miss and a refetch. Never cache Resolved Works or recommendations.
+6. Treat recovery as a cache problem: complete old/new entries survive a process crash; orphaned temps are reclaimed when old; a final name lost to sudden power loss is a miss and a refetch. Never cache Resolved Works or recommendations.
 7. Recover corruption by quarantine/delete plus refetch; corrupted data never becomes evidence.
 8. Read environment variables only through the named const allowlist and only via `Deno.env.get`.
 9. Permissions: `deno run` and CI use exact path, name, and host manifests. `deno compile` artifacts keep narrow environment and network surfaces; the filesystem footprint is enforced at the sealed seam, and Issue #10 records the compile-time dynamic-path limitation as an explicit release decision.
@@ -243,7 +243,7 @@ These decisions are the durable artifacts of Issue #5.
 - **D5 (Corruption contract)**: Corrupt entries are cache misses; quarantine-or-delete and refetch are the only recovery paths. No corrupted data can enter domain reasoning by construction.
 - **D6 (Environment contract)**: The environment allowlist is a closed constant: product variables (MVP: `BOOK_TITLE_CONTACT`, `BOOK_TITLE_CACHE_DIR`, `BOOK_TITLE_OFFLINE`, `BOOK_TITLE_LOG_LEVEL`) plus platform variables (`HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME`, and on Windows `LOCALAPPDATA`, `APPDATA`, `USERPROFILE`). `BOOK_TITLE_GOOGLE_API_KEY` is added only when the Google adapter is implemented.
 - **D7 (Run/test permission baseline)**: All development, fixture, and CI runs use exact grants derived from the same allowlist constant as the code. No test uses `-A`.
-- **D8 (For Issue #8)**: Issue #8 may implement the file-entry store and the Core-facing cache port using Sections 3.4鈥?.8 and 3.11 as its behavioral contract, without waiting on any further permission or locking research.
+- **D8 (For Issue #8)**: Issue #8 may implement the file-entry store and the Core-facing cache port using Sections 3.4–3.8 and 3.11 as its behavioral contract, without waiting on any further permission or locking research.
 - **D9 (For Issue #10)**: Issue #10 must treat compile-time path grants as static. A prebuilt release binary cannot express a runtime-computed per-user directory grant through the documented Deno 2.9 surface, so #10 records either (a) a revisit trigger if Deno adds runtime-scoped path grants or path denial lists, or (b) an explicit release risk acceptance: narrow environment/network surfaces plus a filesystem footprint enforced by the sealed seam rather than by the process-level permission manifest. The executable must never use `-A`-style unrestricted permissions on environment or network in any option.
 
 ## 6. Fixture and Platform Test Matrix
@@ -255,13 +255,13 @@ All tests are fixture-backed; none depend on live sources. Each test isolates th
 | Default roots | Linux: `XDG_CONFIG_HOME`/`XDG_CACHE_HOME`, else `~/.config`/`~/.cache`; macOS: `~/Library/Application Support`, `~/Library/Caches`; Windows: `%APPDATA%`, `%LOCALAPPDATA%` | Linux, macOS, Windows |
 | Product override | `BOOK_TITLE_CACHE_DIR` wins over platform defaults; relative value rejected as invalid config | all |
 | Precedence | Where a CLI override exists: CLI > env > config file > default | all |
-| Unsupported environment | Required platform var missing 鈫?typed `unsupported_environment`, not a silent fallback | all; simulated by unsetting vars |
+| Unsupported environment | Required platform var missing → typed `unsupported_environment`, not a silent fallback | all; simulated by unsetting vars |
 | Directory creation/security | Root created `0o700` (POSIX), pre-existing dirs untouched, canonical paths under root | all |
 | Atomic replacement | Concurrent readers see whole old or whole new entry; no partial content, no missing-name window asserted on Windows | all; Windows semantics separately |
 | Crash simulation | Kill a writer at random intervals; entry is old-complete or new-complete; temp reclamation on next start | Linux, Windows |
 | Windows rename contention | A helper holds an entry open without delete sharing; writer retries with jitter and eventually succeeds | Windows only |
 | Cross-process concurrency | N processes write same and distinct keys; all survive; every final entry parses whole | all |
-| Corruption recovery | Truncated, garbage, wrong-version, wrong-hash entries 鈫?miss, quarantine/delete, refetch online; distinct warning offline | all |
+| Corruption recovery | Truncated, garbage, wrong-version, wrong-hash entries → miss, quarantine/delete, refetch online; distinct warning offline | all |
 | Constrained env reads | Running without a specific env permission produces the mapped outcome, never `toObject()` or unlabeled crash | all |
 | Least-privilege manifest | Fixture process with exact grants succeeds; a process denied the cache path or an unlisted env var fails with `permission_denied` mapped to the documented category | all |
 | Compile smoke | Compiled artifact starts, resolves fixture roots, missing-permission cases map to structured output; run per platform in release CI | per target platform, Linux/macOS/Windows |
@@ -285,27 +285,27 @@ The following were considered and rejected for the MVP baseline: portable adviso
 
 All references retrieved **2026-09-05**.
 
-1. Deno runtime manual, Permissions 鈥?https://docs.deno.com/runtime/manual/basics/permissions/
-2. Deno CLI reference, flags 鈥?https://docs.deno.com/runtime/reference/cli/flags/
-3. Deno CLI reference, compile 鈥?https://docs.deno.com/runtime/reference/cli/compile/
-4. Deno API, `Deno.env` 鈥?https://docs.deno.com/api/deno/~/Deno.env
-5. Deno API, `Deno.permissions` 鈥?https://docs.deno.com/api/deno/~/Deno.permissions
-6. Deno API, `Deno.open` and open options 鈥?https://docs.deno.com/api/deno/~/Deno.open
-7. Deno API, `Deno.FsFile.sync`/`syncData` 鈥?https://docs.deno.com/api/deno/~/Deno.FsFile.syncData
-8. Deno API, `Deno.rename` 鈥?https://docs.deno.com/api/deno/~/Deno.rename
-9. Deno API, `Deno.makeTempFile` 鈥?https://docs.deno.com/api/deno/~/Deno.makeTempFile
-10. Deno API, `Deno.mkdir` 鈥?https://docs.deno.com/api/deno/~/Deno.mkdir
-11. Deno API, `Deno.remove` 鈥?https://docs.deno.com/api/deno/~/Deno.remove
-12. Deno API, `Deno.stat` 鈥?https://docs.deno.com/api/deno/~/Deno.stat
-13. `@std/fs` documentation 鈥?https://jsr.io/@std/fs
-14. `@std/path` documentation 鈥?https://jsr.io/@std/path
-15. `@std/async` documentation (semaphore/retry helpers) 鈥?https://jsr.io/@std/async
-16. freedesktop, XDG Base Directory Specification 鈥?https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
-17. Microsoft, Known Folders 鈥?https://learn.microsoft.com/en-us/windows/win32/shell/knownfolders
-18. Microsoft, `MoveFileExW` 鈥?https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw
-19. Microsoft, `ReplaceFileW` 鈥?https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew
-20. Microsoft, `CreateFileW` (share modes) 鈥?https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew
-21. Microsoft, `FlushFileBuffers` 鈥?https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers
-22. POSIX.1-2017, `rename` 鈥?https://pubs.opengroup.org/onlinepubs/9699919799/functions/rename.html
-23. Linux man-pages, `rename(2)` and `fsync(2)` 鈥?https://man7.org/linux/man-pages/man2/rename.2.html and https://man7.org/linux/man-pages/man2/fsync.2.html
-24. Apple, File System Programming Guide 鈥?https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/FileSystemOverview/FileSystemOverview.html
+1. Deno runtime manual, Permissions — https://docs.deno.com/runtime/manual/basics/permissions/
+2. Deno CLI reference, flags — https://docs.deno.com/runtime/reference/cli/flags/
+3. Deno CLI reference, compile — https://docs.deno.com/runtime/reference/cli/compile/
+4. Deno API, `Deno.env` — https://docs.deno.com/api/deno/~/Deno.env
+5. Deno API, `Deno.permissions` — https://docs.deno.com/api/deno/~/Deno.permissions
+6. Deno API, `Deno.open` and open options — https://docs.deno.com/api/deno/~/Deno.open
+7. Deno API, `Deno.FsFile.sync`/`syncData` — https://docs.deno.com/api/deno/~/Deno.FsFile.syncData
+8. Deno API, `Deno.rename` — https://docs.deno.com/api/deno/~/Deno.rename
+9. Deno API, `Deno.makeTempFile` — https://docs.deno.com/api/deno/~/Deno.makeTempFile
+10. Deno API, `Deno.mkdir` — https://docs.deno.com/api/deno/~/Deno.mkdir
+11. Deno API, `Deno.remove` — https://docs.deno.com/api/deno/~/Deno.remove
+12. Deno API, `Deno.stat` — https://docs.deno.com/api/deno/~/Deno.stat
+13. `@std/fs` documentation — https://jsr.io/@std/fs
+14. `@std/path` documentation — https://jsr.io/@std/path
+15. `@std/async` documentation (semaphore/retry helpers) — https://jsr.io/@std/async
+16. freedesktop, XDG Base Directory Specification — https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+17. Microsoft, Known Folders — https://learn.microsoft.com/en-us/windows/win32/shell/knownfolders
+18. Microsoft, `MoveFileExW` — https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw
+19. Microsoft, `ReplaceFileW` — https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew
+20. Microsoft, `CreateFileW` (share modes) — https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew
+21. Microsoft, `FlushFileBuffers` — https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers
+22. POSIX.1-2017, `rename` — https://pubs.opengroup.org/onlinepubs/9699919799/functions/rename.html
+23. Linux man-pages, `rename(2)` and `fsync(2)` — https://man7.org/linux/man-pages/man2/rename.2.html and https://man7.org/linux/man-pages/man2/fsync.2.html
+24. Apple, File System Programming Guide — https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/FileSystemOverview/FileSystemOverview.html
