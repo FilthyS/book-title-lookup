@@ -1,12 +1,37 @@
 {
+  "workspace": [
+    "apps/tui",
+    "packages/core",
+    "packages/providers"
+  ],
+  "exclude": [
+    ".scratch",
+    "spikes"
+  ],
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1.0.19"
+  },
   "fmt": {
     "exclude": [
       ".scratch",
+      "spikes",
       "**/*.md"
+    ]
+  },
+  "lint": {
+    "exclude": [
+      ".scratch",
+      "spikes"
     ]
   },
   "tasks": {
     "fmt": "deno fmt",
-    "fmt:check": "deno fmt --check"
+    "fmt:check": "deno fmt --check",
+    "lint": "deno lint",
+    "check": "deno check",
+    "test": "deno test --no-prompt --allow-env=BOOK_TITLE_CONTACT,BOOK_TITLE_CACHE_DIR,BOOK_TITLE_OFFLINE,BOOK_TITLE_LOG_LEVEL,HOME,XDG_CONFIG_HOME,XDG_CACHE_HOME,LOCALAPPDATA,APPDATA,USERPROFILE --allow-run=deno --allow-read=. --allow-write=.",
+    "cli": "deno run apps/tui/src/main.ts",
+    "cli:version": "deno run apps/tui/src/main.ts --version",
+    "cli:help": "deno run apps/tui/src/main.ts --help"
   }
 }

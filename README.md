@@ -72,15 +72,36 @@ worker lifecycle.
 
 ## Development
 
-Deno 2.9 or newer is recommended.
+Deno 2.9 or newer is recommended. The dependency lockfile is committed.
+
+The root `deno.json` defines the workspace members `apps/tui`,
+`packages/core`, and `packages/providers` plus the shared task surface.
+Every task runs without `-A`; runtime permissions follow the closed
+environment allowlist and the resolved fixture/cache roots.
 
 ```console
-deno task fmt
-deno task fmt:check
+deno task fmt          # format workspace sources
+deno task fmt:check   # fail when formatting drifts
+deno task lint        # lint workspace sources
+deno task check       # type-check workspace sources
+deno task test        # run workspace tests
 ```
 
-Implementation tasks will be added when the workspace packages are scaffolded.
-The dependency lockfile will be committed once dependencies are introduced.
+The maintenance CLI is runnable from source:
+
+```console
+deno task cli:help       # deno run apps/tui/src/main.ts --help
+deno task cli:version    # deno run apps/tui/src/main.ts --version
+deno run apps/tui/src/main.ts config show [--json]
+deno run apps/tui/src/main.ts cache list|show <digest>|clear [--json]
+```
+
+The current build implements the configuration/cache seam and the
+maintenance surface (`config show`, `cache list`, `cache show`, `cache
+clear`, `--help`, `--version`, and the global options). The `search`,
+`resolve`, and `titles` lookup commands are part of the frozen CLI grammar
+and their help is available, but their dispatch arrives in the next
+implementation slice.
 
 ## License
 
