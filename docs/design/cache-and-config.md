@@ -163,7 +163,7 @@ responses differ by endpoint, host, format, language, and every query parameter
 that selects fields or pagination.
 
 ```ts
-type ProviderId = "open_library" | "wikidata";
+type ProviderId = "openlibrary" | "wikidata";
 
 interface CanonicalRequestIdentity {
   readonly provider: ProviderId;
@@ -215,7 +215,7 @@ entry's stored URL re-hashes to the file's key digest (Section 11).
 Example:
 
 ```text
-provider: "open_library"
+provider: "openlibrary"
 url: https://openlibrary.org/search.json?fields=key%2Ctitle&limit=10&q=xxx
 digest: 9f2b4c1d0a... (64 hex chars)
 file: <cacheRoot>/v1/9f2b4c1d0a....json
