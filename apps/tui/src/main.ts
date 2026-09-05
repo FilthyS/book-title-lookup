@@ -1,10 +1,11 @@
 /**
- * apps/tui composition root (issue #32 / ticket #15).
+ * apps/tui composition root (issue #32 / ticket #15, extended for lookup).
  *
  * Wires the real streams, environment reader, filesystem seam, platform kind,
  * clock, and randomness into the CLI driver, owns the SIGINT/SIGTERM abort
- * controller, and maps the returned exit code onto the process. No lookup
- * command dispatches in this build; those arrive with the lookup slice.
+ * controller, and maps the returned exit code onto the process. Lookup
+ * commands run one-shot directed sessions over the fixture catalog in this
+ * slice; the full-screen TUI arrives in a later slice.
  */
 
 import { type CliDeps, runCli, type TextWriter } from "./cli/dispatch.ts";

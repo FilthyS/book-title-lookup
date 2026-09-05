@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://book-title-lookup.invalid/schemas/cli-json.v1.json",
+  "title": "cli-json.v1 shared definitions",
+  "$ref": "#/$defs/documentBase",
+  "$defs": {
+    "externalReference": {
+      "type": "object",
+      "required": ["namespace", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "enum": [
+            "openlibrary:work",
+            "openlibrary:edition",
+            "wikidata:item",
+            "isbn"
+          ]
+        },
+        "value": { "type": "string" }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "required": ["source", "code", "references", "details"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string", "enum": ["openlibrary", "wikidata"] },
+        "code": { "type": "string" },
+        "references": { "type": "array", "items": { "$ref": "#/$defs/externalReference" } },
+        "details": { "type": "object" }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "required": [
+        "title",
+        "alternativeTitles",
+        "authors",
+        "contentLanguages",
+        "references"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "alternativeTitles": { "type": "array", "items": { "type": "string" } },
+        "authors": { "type": "array", "items": { "type": "string" } },
+        "publicationYear": { "type": "integer" },
+        "editionCount": { "type": "integer" },
+        "contentLanguages": { "type": "array", "items": { "type": "string" } },
+        "references": { "type": "array", "items": { "$ref": "#/$defs/externalReference" } }
+      }
+    },
+    "work": {
+      "type": "object",
+      "required": ["title", "authors", "contentLanguages", "references"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "authors": { "type": "array", "items": { "type": "string" } },
+        "firstPublicationYear": { "type": "integer" },
+        "contentLanguages": { "type": "array", "items": { "type": "string" } },
+        "references": { "type": "array", "items": { "$ref": "#/$defs/externalReference" } }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "required": [
+        "source",
+        "role",
+        "text",
+        "subtitle",
+        "language",
+        "sourceRecordUrl",
+        "references",
+        "stale",
+        "fetchedAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string", "enum": ["openlibrary", "wikidata"] },
+        "role": {
+          "type": "string",
+          "enum": [
+            "edition_title",
+            "edition_subtitle",
+            "edition_display_fallback",
+            "work_original_title"
+          ]
+        },
+        "text": { "type": "string" },
+        "subtitle": { "type": ["string", "null"] },
+        "language": { "type": "string" },
+        "sourceRecordUrl": { "type": "string" },
+        "references": { "type": "array", "items": { "$ref": "#/$defs/externalReference" } },
+        "statementId": { "type": "string" },
+        "rank": { "type": "string", "enum": ["preferred", "normal"] },
+        "stale": { "type": "boolean" },
+        "fetchedAt": { "type": "string" }
+      }
+    },
+    "titleGroup": {
+      "type": "object",
+      "required": [
+        "language",
+        "title",
+        "subtitle",
+        "level",
+        "recommended",
+        "satisfiesRequest",
+        "originalTitle",
+        "attestations"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "language": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": ["string", "null"] },
+        "level": { "type": "string", "enum": ["verified", "probable", "ambiguous"] },
+        "recommended": { "type": "boolean" },
+        "satisfiesRequest": { "type": "boolean" },
+        "originalTitle": { "type": "boolean" },
+        "attestations": { "type": "array", "items": { "$ref": "#/$defs/attestation" } }
+      }
+    },
+    "documentBase": {
+      "type": "object",
+      "required": ["schemaVersion", "command", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": { "const": "cli-json.v1" },
+        "command": {
+          "type": "string",
+          "enum": ["search", "resolve", "titles"]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "found",
+            "not_found",
+            "failed",
+            "cancelled",
+            "resolved",
+            "needs_choice",
+            "no_attested_titles"
+          ]
+        },
+        "confirmation": { "type": "string", "enum": ["strong_reference"] },
+        "reason": {
+          "type": "string",
+          "enum": ["ambiguous_identifier", "indirect_evidence"]
+        },
+        "work": { "$ref": "#/$defs/work" },
+        "targetLanguages": { "type": "array", "items": { "type": "string" } },
+        "groups": { "type": "array", "items": { "$ref": "#/$defs/titleGroup" } },
+        "candidates": { "type": "array", "items": { "$ref": "#/$defs/candidate" } },
+        "warnings": { "type": "array", "items": { "$ref": "#/$defs/issue" } },
+        "failures": { "type": "array", "items": { "$ref": "#/$defs/issue" } }
+      }
+    }
+  }
+}
