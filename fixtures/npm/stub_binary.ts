@@ -15,15 +15,31 @@
  *     `--limit 5` in the argv-passthrough case never short-circuits the relay.
  */
 
+const encoder = new TextEncoder();
+
+/**
+ * Encode `text` plus a real newline byte (0x0A). We append the byte to an
+ * explicit Uint8Array instead of relying on a shell, an echo, or a second
+ * string escape, so the compiled stub always emits a genuine `\n` terminator
+ * on every host (the launcher contract tests assert on the real newline).
+ */
+function terminatedLine(text: string): Uint8Array {
+  const body = encoder.encode(text);
+  const out = new Uint8Array(body.byteLength + 1);
+  out.set(body);
+  out[body.byteLength] = 0x0a;
+  return out;
+}
+
 const args = Deno.args;
 const stdout = args.includes("--stderr") ? [] : args;
 const stderr = args.includes("--stderr") ? args : [];
 
 if (stdout.length > 0) {
-  Deno.stdout.write(new TextEncoder().encode(`stub-ok ${stdout.join(" ")}\n`));
+  await Deno.stdout.write(terminatedLine(`stub-ok ${stdout.join(" ")}`));
 }
 if (stderr.length > 0) {
-  Deno.stderr.write(new TextEncoder().encode(`stub-err ${stderr.join(" ")}\n`));
+  await Deno.stderr.write(terminatedLine(`stub-err ${stderr.join(" ")}`));
 }
 
 let exitCode = 0;

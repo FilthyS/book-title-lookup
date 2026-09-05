@@ -1,6 +1,10 @@
 import { assertEquals } from "@std/assert";
 import { MemoryEnvironment } from "../../../../packages/providers/src/platform/env.ts";
 import {
+  APP_DIRECTORY_NAME,
+} from "../../../../packages/providers/src/platform/platform.ts";
+import { joinPath } from "../../../../packages/providers/src/platform/paths.ts";
+import {
   DenoFileSystemSeam,
   type FileSystemSeam,
 } from "../../../../packages/providers/src/cache/fs-seam.ts";
@@ -90,40 +94,36 @@ Deno.test("settings cli flag beats environment for offline", async () => {
 });
 
 Deno.test("settings config file supplies offline/logLevel/contact origins", async () => {
-  const dir = await makeConfigDir();
-  try {
-    const fs = new DenoFileSystemSeam();
-    await writeConfigFile(
-      dir,
-      JSON.stringify({
-        schemaVersion: "config.v1",
-        offline: true,
-        logLevel: "debug",
-        contact: "config@example.com",
+  const fs = new WindowsMemoryFs();
+  fs.files.set(
+    windowsConfigPath(WINDOWS_APPDATA),
+    JSON.stringify({
+      schemaVersion: "config.v1",
+      offline: true,
+      logLevel: "debug",
+      contact: "config@example.com",
+    }),
+  );
+  const result = await resolveSettings(
+    testInput({
+      env: new MemoryEnvironment({
+        APPDATA: WINDOWS_APPDATA,
+        LOCALAPPDATA: WINDOWS_LOCALAPPDATA,
+        USERPROFILE: WINDOWS_USERPROFILE,
       }),
-    );
-    const result = await resolveSettings(
-      testInput({
-        env: new MemoryEnvironment({
-          APPDATA: dir,
-          LOCALAPPDATA: dir,
-        }),
-        platform: "windows",
-        fs,
-      }),
-    );
-    assertEquals(result.ok, true);
-    if (!result.ok) return;
-    assertEquals(result.settings.configRoot, `${dir}\\book-title-lookup`);
-    assertEquals(result.settings.offline, true);
-    assertEquals(result.settings.logLevel, "debug");
-    assertEquals(result.settings.contact, "config@example.com");
-    assertEquals(result.settings.sources.offline, "config_file");
-    assertEquals(result.settings.sources.logLevel, "config_file");
-    assertEquals(result.settings.sources.contact, "config_file");
-  } finally {
-    await Deno.remove(dir, { recursive: true });
-  }
+      platform: "windows",
+      fs,
+    }),
+  );
+  assertEquals(result.ok, true);
+  if (!result.ok) return;
+  assertEquals(result.settings.configRoot, windowsConfigRoot(WINDOWS_APPDATA));
+  assertEquals(result.settings.offline, true);
+  assertEquals(result.settings.logLevel, "debug");
+  assertEquals(result.settings.contact, "config@example.com");
+  assertEquals(result.settings.sources.offline, "config_file");
+  assertEquals(result.settings.sources.logLevel, "config_file");
+  assertEquals(result.settings.sources.contact, "config_file");
 });
 
 Deno.test("settings cacheRoot precedence is cli > environment > default, never config", async () => {
@@ -185,25 +185,21 @@ Deno.test("settings invalid config file yields invalid_config, never a book outc
       JSON.stringify({ schemaVersion: "config.v1", contact: 7 }),
     ]
   ) {
-    const dir = await makeConfigDir();
-    try {
-      const fs = new DenoFileSystemSeam();
-      await writeConfigFile(dir, content);
-      const result = await resolveSettings(
-        testInput({
-          env: new MemoryEnvironment({
-            APPDATA: dir,
-            LOCALAPPDATA: dir,
-          }),
-          platform: "windows",
-          fs,
+    const fs = new WindowsMemoryFs();
+    fs.files.set(windowsConfigPath(WINDOWS_APPDATA), content);
+    const result = await resolveSettings(
+      testInput({
+        env: new MemoryEnvironment({
+          APPDATA: WINDOWS_APPDATA,
+          LOCALAPPDATA: WINDOWS_LOCALAPPDATA,
+          USERPROFILE: WINDOWS_USERPROFILE,
         }),
-      );
-      assertEquals(result.ok, false, `expected failure for ${content}`);
-      if (!result.ok) assertEquals(result.failure.kind, "invalid_config");
-    } finally {
-      await Deno.remove(dir, { recursive: true });
-    }
+        platform: "windows",
+        fs,
+      }),
+    );
+    assertEquals(result.ok, false, `expected failure for ${content}`);
+    if (!result.ok) assertEquals(result.failure.kind, "invalid_config");
   }
 });
 
@@ -222,24 +218,19 @@ Deno.test("settings denied environment variable maps to permission_denied", asyn
 });
 
 Deno.test("settings denied config read maps to permission_denied", async () => {
-  const dir = await makeConfigDir();
-  try {
-    await writeConfigFile(dir, JSON.stringify({ schemaVersion: "config.v1" }));
-    const result = await resolveSettings(
-      testInput({
-        env: new MemoryEnvironment({
-          APPDATA: dir,
-          LOCALAPPDATA: dir,
-        }),
-        platform: "windows",
-        fs: new DenyFs(),
+  const result = await resolveSettings(
+    testInput({
+      env: new MemoryEnvironment({
+        APPDATA: WINDOWS_APPDATA,
+        LOCALAPPDATA: WINDOWS_LOCALAPPDATA,
+        USERPROFILE: WINDOWS_USERPROFILE,
       }),
-    );
-    assertEquals(result.ok, false);
-    if (!result.ok) assertEquals(result.failure.kind, "permission_denied");
-  } finally {
-    await Deno.remove(dir, { recursive: true });
-  }
+      platform: "windows",
+      fs: new DenyFs(),
+    }),
+  );
+  assertEquals(result.ok, false);
+  if (!result.ok) assertEquals(result.failure.kind, "permission_denied");
 });
 
 Deno.test("settings unsupported platform maps to typed failure", async () => {
@@ -280,21 +271,69 @@ Deno.test("settings contact is inherited from environment when config lacks it",
   assertEquals(result.settings.sources.contact, "environment");
 });
 
-async function makeConfigDir(): Promise<string> {
-  await Deno.mkdir(".tmp", { recursive: true });
-  return await Deno.makeTempDir({
-    dir: await Deno.realPath(".tmp"),
-    prefix: "settings-",
-  });
+// ---------------------------------------------------------------------------
+// Windows config-file fixture
+// ---------------------------------------------------------------------------
+// The config-file tests exercise the Windows resolver path (backslash lexical
+// joins) without touching a real host filesystem. A real temp dir is always a
+// native path (POSIX on the Linux/macOS runners), so combining it with Windows
+// backslash separators would break the fixture on non-Windows CI. Instead the
+// config file lives in an in-memory fs keyed by the same Windows lexical paths
+// the resolver requests, making the fixture deterministic on every host while
+// the assertions stay genuinely Windows-shaped.
+
+const WINDOWS_APPDATA = "C:\\Users\\fixture\\AppData\\Roaming";
+const WINDOWS_LOCALAPPDATA = "C:\\Users\\fixture\\AppData\\Local";
+const WINDOWS_USERPROFILE = "C:\\Users\\fixture";
+
+function windowsConfigRoot(appDataRoot: string): string {
+  return joinPath("windows", appDataRoot, APP_DIRECTORY_NAME);
 }
 
-async function writeConfigFile(
-  configDir: string,
-  content: string,
-): Promise<void> {
-  const root = `${configDir}\\book-title-lookup`;
-  await Deno.mkdir(root, { recursive: true });
-  await Deno.writeTextFile(`${root}\\config.json`, content);
+function windowsConfigPath(appDataRoot: string): string {
+  return joinPath("windows", appDataRoot, APP_DIRECTORY_NAME, "config.json");
+}
+
+/**
+ * In-memory FileSystemSeam keyed by exact Windows lexical path strings. Only
+ * readTextFile is exercised by resolveSettings; the remaining seam methods stay
+ * inert so the fixture never reaches a real host filesystem.
+ */
+class WindowsMemoryFs implements FileSystemSeam {
+  readonly files = new Map<string, string>();
+
+  mkdir(
+    _path: string,
+    _options?: { readonly recursive?: boolean; readonly mode?: number },
+  ) {
+    return Promise.resolve({ ok: true as const });
+  }
+  stat(_path: string) {
+    return Promise.resolve({ ok: false as const, error: "not_found" as const });
+  }
+  openForWrite(_path: string) {
+    return Promise.resolve({
+      ok: false as const,
+      error: "permission_denied" as const,
+    });
+  }
+  readTextFile(path: string) {
+    const text = this.files.get(path);
+    return Promise.resolve(
+      text === undefined
+        ? { ok: false as const, error: "not_found" as const }
+        : { ok: true as const, text },
+    );
+  }
+  rename(_from: string, _to: string) {
+    return Promise.resolve({ ok: true as const });
+  }
+  remove(_path: string) {
+    return Promise.resolve({ ok: true as const });
+  }
+  listDirectory(_path: string) {
+    return Promise.resolve({ ok: true as const, names: [] as string[] });
+  }
 }
 
 class DenyFs implements FileSystemSeam {
