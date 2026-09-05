@@ -39,7 +39,7 @@ import {
 } from "./human-lookup.ts";
 import { versionLine } from "../version.ts";
 import { resolveSettings, type SettingsFailure } from "../settings/resolver.ts";
-import { buildComposedOpenLibraryCatalog } from "../catalog/composed-catalog.ts";
+import { buildComposedCatalog } from "../catalog/composed-catalog.ts";
 import { PROVIDER_DECODER_SCHEMA_VERSIONS } from "../../../../packages/providers/src/openlibrary/config.ts";
 import { documentForSummary } from "./json.ts";
 import type {
@@ -171,7 +171,7 @@ async function runLookup(
   let catalog: BookTitleCatalog;
   if (deps.catalog !== undefined) {
     // Tests and fixture harnesses inject an explicit catalog; production
-    // CLI runs use the real Open Library composition below.
+    // CLI runs use the real two-source composition below.
     catalog = deps.catalog;
   } else {
     const resolved = await createDefaultLookupCatalog(
@@ -253,7 +253,7 @@ async function createDefaultLookupCatalog(
     });
     return { ok: false, code };
   }
-  const catalog = buildComposedOpenLibraryCatalog({
+  const catalog = buildComposedCatalog({
     settings: settingsResult.settings,
     clock: deps.clock,
     fs: deps.fs,
