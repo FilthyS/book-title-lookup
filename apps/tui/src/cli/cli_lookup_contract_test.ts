@@ -21,6 +21,7 @@ import {
   detectPlatformKind,
 } from "../../../../packages/providers/src/platform/platform.ts";
 import { loadSchema, validateAgainstSchema } from "../json/schema-validate.ts";
+import { createFakeBookTitleCatalog } from "../catalog/fixture-catalog.ts";
 
 const SCHEMA_URL = new URL(
   "../../../../fixtures/cli-json/schema/cli-json.v1.schema.json",
@@ -66,6 +67,9 @@ function makeDeps(signal?: AbortSignal): {
       clock: new FixedClock("2026-09-05T00:00:00.000Z"),
       random: systemRandomSource,
       signal,
+      // The fixture corpus is injected explicitly; ordinary lookup tests
+      // never take the default (real-source) composition path.
+      catalog: createFakeBookTitleCatalog(),
     },
   };
 }

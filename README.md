@@ -96,12 +96,23 @@ deno run apps/tui/src/main.ts config show [--json]
 deno run apps/tui/src/main.ts cache list|show <digest>|clear [--json]
 ```
 
-The current build implements the configuration/cache seam and the
-maintenance surface (`config show`, `cache list`, `cache show`, `cache
-clear`, `--help`, `--version`, and the global options). The `search`,
-`resolve`, and `titles` lookup commands are part of the frozen CLI grammar
-and their help is available, but their dispatch arrives in the next
-implementation slice.
+The current build implements the configuration/cache seam, the maintenance
+surface (`config show`, `cache list`, `cache show`, `cache clear`, `--help`,
+`--version`, and the global options), and the Open Library vertical slice:
+`search`, `resolve`, and `titles` dispatch through Core's catalog service
+composed over the real Open Library adapter, runtime, and HTTP cache.
+Fixture-backed CLI contract tests inject the module-level fake explicitly;
+the production composition root defaults to the real source.
+
+Real-source lookup requires the matching grants, for example:
+
+```console
+# coordinator-authorized live smoke; identified runs require a contact
+deno task test:live-smoke
+# or run the CLI directly against Open Library with a scratch cache
+$env:BOOK_TITLE_CACHE_DIR="./cache-tmp"; $env:BOOK_TITLE_CONTACT="you@example.com"
+deno run --allow-net=openlibrary.org apps/tui/src/main.ts search --title 百年孤独 --json
+```
 
 ## License
 

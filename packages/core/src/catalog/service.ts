@@ -83,13 +83,16 @@ export class CatalogService implements BookTitleCatalog {
   #works = new Map<string, RegisteredWork>();
 
   constructor(sources: readonly EvidenceSource[]) {
-    this.#sources = SOURCE_ORDER.map((source) => {
+    // A vertical slice may compose any subset of the known sources (ticket
+    // #17 composes Open Library alone); order is canonical OL-then-WD when
+    // both are present so reconciliation stays deterministic.
+    this.#sources = SOURCE_ORDER.flatMap((source) => {
       const found = sources.find((entry) => entry.source === source);
-      if (found === undefined) {
-        throw new TypeError(`missing evidence source: ${source}`);
-      }
-      return found;
+      return found === undefined ? [] : [found];
     });
+    if (this.#sources.length === 0) {
+      throw new TypeError("catalog requires at least one evidence source");
+    }
   }
 
   async search(

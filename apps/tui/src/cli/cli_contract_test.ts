@@ -9,6 +9,7 @@
 import { assert, assertEquals, assertMatch } from "@std/assert";
 import { parseArgs } from "./args.ts";
 import { type CliDeps, runCli } from "./dispatch.ts";
+import { createFakeBookTitleCatalog } from "../catalog/fixture-catalog.ts";
 import {
   type EnvironmentReader,
   MemoryEnvironment,
@@ -402,6 +403,9 @@ Deno.test("cli lookup commands parse and dispatch over the fixture catalog", asy
     assertEquals(parsed.invocation.command, "search");
 
     const { deps } = makeDeps({ env: defaultEnv(scratch) });
+    // Lookup dispatch is fixture-injected here; the default composition is
+    // the real Open Library path asserted by real_catalog_contract_test.ts.
+    deps.catalog = createFakeBookTitleCatalog();
     const run = await runCliOut(
       ["search", "--title", "百年孤独", "--json"],
       deps,

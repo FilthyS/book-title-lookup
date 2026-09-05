@@ -5,3 +5,6 @@ coverage/
 dist/
 .DS_Store
 
+# Deterministic cache/CLI/smoke scratch used by fixture tests
+.tmp/
+
