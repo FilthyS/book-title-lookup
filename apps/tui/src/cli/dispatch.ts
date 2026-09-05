@@ -78,9 +78,19 @@ import {
   type TerminalSummary,
 } from "../coordinator/projections.ts";
 import type { Message } from "../coordinator/messages.ts";
+import type { TerminalIo } from "../tui/terminal.ts";
+import { runTuiSession } from "../tui/driver.ts";
 
 export interface TextWriter {
   write(text: string): Promise<void>;
+}
+
+/** Terminal seam for the interactive (no-command) TUI mode (issue #12 section
+ *  3.1). Present only when main.ts can supply real Deno terminal streams. */
+export interface TuiDeps {
+  readonly stdinIsTty: boolean;
+  readonly stdoutIsTty: boolean;
+  readonly io: TerminalIo;
 }
 
 export interface CliDeps {
@@ -96,6 +106,9 @@ export interface CliDeps {
    *  real Open Library composition from resolved settings; tests inject the
    *  fixture catalog explicitly. */
   catalog?: BookTitleCatalog;
+  /** Interactive terminal streams for the no-command TUI mode. Absent in
+   *  headless test drivers and for explicit CLI commands. */
+  tui?: TuiDeps;
 }
 
 /**
@@ -135,9 +148,12 @@ async function dispatch(
       return 0;
     }
     case "no_command": {
+      if (isTuiMode(invocation.global, deps)) {
+        return await runTui(invocation.global, deps);
+      }
       await deps.stderr.write(
         usageErrorText(
-          "no command given; the interactive TUI is not available in this build",
+          "no command given; run book-title in an interactive terminal without --json to start the TUI",
         ),
       );
       return 2;
@@ -154,6 +170,35 @@ async function dispatch(
         deps,
       );
   }
+}
+
+// ---------------------------------------------------------------------------
+// No-command TUI mode (issue #12 section 3.1, issue #13 section 13.1)
+// ---------------------------------------------------------------------------
+
+/** Whether this no-command invocation should start the interactive TUI. */
+export function isTuiMode(
+  global: GlobalFlags,
+  deps: CliDeps,
+): boolean {
+  if (global.json) return false;
+  const tui = deps.tui;
+  if (tui === undefined) return false;
+  return tui.stdinIsTty && tui.stdoutIsTty;
+}
+
+async function runTui(global: GlobalFlags, deps: CliDeps): Promise<number> {
+  if (deps.signal?.aborted) return 130;
+  if (deps.tui === undefined) return 2;
+  let catalog: BookTitleCatalog;
+  if (deps.catalog !== undefined) {
+    catalog = deps.catalog;
+  } else {
+    const resolved = await createDefaultLookupCatalog(global, deps);
+    if (!resolved.ok) return resolved.code;
+    catalog = resolved.catalog;
+  }
+  return await runTuiSession({ io: deps.tui.io, catalog });
 }
 
 // ---------------------------------------------------------------------------

@@ -1,15 +1,14 @@
-// Display-width measurement for the thin renderer.
+// Display-width measurement for the thin renderer (promoted from the issue #9
+// spike evidence; docs/research/deno-tui-candidates.md section 5).
 //
-// The research in docs/research/deno-tui-candidates.md showed that a
-// code-point East Asian width table (what jsr:@std/cli/unicode-width and
+// A code-point East Asian width table (what `@std/cli/unicode-width` and
 // Cliffy share) over-counts ZWJ emoji (8 columns for a family that renders in
-// 2). The spike therefore segments graphemes first and special-cases ZWJ
-// emoji clusters, which render as one wide glyph. Combining marks and flag
-// pairs are handled by the std table because combining marks measure 0 and a
-// regional-indicator pair measures 2 there.
+// 2). Text is therefore segmented into graphemes first and ZWJ emoji clusters
+// are special-cased to one wide glyph. Combining marks measure 0 and a
+// regional-indicator pair measures 2 in the std table, so they are handled by
+// measuring each cluster with that table.
 
-import { unicodeWidth } from "jsr:@std/cli@1.0.32/unicode-width";
-import { splitGraphemes } from "../shared/segments.ts";
+import { unicodeWidth } from "@std/cli/unicode-width";
 
 export interface Cluster {
   readonly text: string;
@@ -17,6 +16,17 @@ export interface Cluster {
 }
 
 const ZWJ = 0x200d;
+
+let segmenter: Intl.Segmenter | undefined;
+
+/** Split text into grapheme clusters (never empty for non-empty input). */
+export function splitGraphemes(text: string): readonly string[] {
+  if (text === "") {
+    return [];
+  }
+  segmenter ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  return [...segmenter.segment(text)].map((part) => part.segment);
+}
 
 /** Column width of one grapheme cluster as a modern terminal renders it. */
 export function clusterWidth(cluster: string): number {
