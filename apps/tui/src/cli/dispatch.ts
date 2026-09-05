@@ -39,6 +39,8 @@ import {
 } from "./human-lookup.ts";
 import { versionLine } from "../version.ts";
 import { resolveSettings, type SettingsFailure } from "../settings/resolver.ts";
+import { buildComposedOpenLibraryCatalog } from "../catalog/composed-catalog.ts";
+import { PROVIDER_DECODER_SCHEMA_VERSIONS } from "../../../../packages/providers/src/openlibrary/config.ts";
 import { documentForSummary } from "./json.ts";
 import type {
   EnvironmentReader,
@@ -68,7 +70,6 @@ import type {
   SourceFailure,
   SourceWarning,
 } from "../../../../packages/core/src/module.ts";
-import { createFakeBookTitleCatalog } from "../catalog/fixture-catalog.ts";
 import { emptyQueryDraft, type SessionState } from "../coordinator/state.ts";
 import { runDirectedSession } from "./directed-session.ts";
 import {
@@ -91,17 +92,17 @@ export interface CliDeps {
   readonly clock: Clock;
   readonly random: RandomSource;
   readonly signal?: AbortSignal;
-  /** The catalog behind lookup commands; the fixture fake is the default. */
-  readonly catalog?: BookTitleCatalog;
+  /** The catalog behind lookup commands. When absent, the CLI builds the
+   *  real Open Library composition from resolved settings; tests inject the
+   *  fixture catalog explicitly. */
+  catalog?: BookTitleCatalog;
 }
 
 /**
  * Current decoder schema versions for the envelope read verification.
+ * One constant in Providers owns the stamps; this re-export prevents drift.
  */
-export const CLI_DECODER_SCHEMA_VERSIONS = {
-  openlibrary: 1,
-  wikidata: 1,
-} as const;
+export const CLI_DECODER_SCHEMA_VERSIONS = PROVIDER_DECODER_SCHEMA_VERSIONS;
 
 interface CancelShape {
   readonly json: boolean;
@@ -167,7 +168,19 @@ async function runLookup(
   if (deps.signal?.aborted) {
     return await writeLookupCancelled(command, deps, invocation.global.json);
   }
-  const catalog = deps.catalog ?? createFakeBookTitleCatalog();
+  let catalog: BookTitleCatalog;
+  if (deps.catalog !== undefined) {
+    // Tests and fixture harnesses inject an explicit catalog; production
+    // CLI runs use the real Open Library composition below.
+    catalog = deps.catalog;
+  } else {
+    const resolved = await createDefaultLookupCatalog(
+      invocation.global,
+      deps,
+    );
+    if (!resolved.ok) return resolved.code;
+    catalog = resolved.catalog;
+  }
   const seed = seedForCommand(invocation);
   const initial = initialMessage(invocation);
   const result = await runDirectedSession({
@@ -214,6 +227,40 @@ function summaryWarnings(summary: TerminalSummary): readonly SourceWarning[] {
 
 function summaryFailures(summary: TerminalSummary): readonly SourceFailure[] {
   return summary.status === "failed" ? summary.failures : [];
+}
+
+async function createDefaultLookupCatalog(
+  global: GlobalFlags,
+  deps: CliDeps,
+): Promise<
+  | { readonly ok: true; readonly catalog: BookTitleCatalog }
+  | { readonly ok: false; readonly code: number }
+> {
+  const settingsResult = await resolveSettings({
+    env: deps.env,
+    platform: deps.platform,
+    fs: deps.fs,
+    cli: {
+      offline: global.offline ? true : undefined,
+      cacheDir: global.cacheDir,
+    },
+    signal: deps.signal,
+  });
+  if (!settingsResult.ok) {
+    const code = await settingsFailureExit(settingsResult.failure, deps, {
+      json: global.json,
+      document: () => configCancelledDocument(),
+    });
+    return { ok: false, code };
+  }
+  const catalog = buildComposedOpenLibraryCatalog({
+    settings: settingsResult.settings,
+    clock: deps.clock,
+    fs: deps.fs,
+    random: deps.random,
+    platform: deps.platform,
+  });
+  return { ok: true, catalog };
 }
 
 function seedForCommand(

@@ -83,13 +83,16 @@ export class CatalogService implements BookTitleCatalog {
   #works = new Map<string, RegisteredWork>();
 
   constructor(sources: readonly EvidenceSource[]) {
-    this.#sources = SOURCE_ORDER.map((source) => {
+    // A vertical slice may compose any subset of the known sources (ticket
+    // #17 composes Open Library alone); order is canonical OL-then-WD when
+    // both are present so reconciliation stays deterministic.
+    this.#sources = SOURCE_ORDER.flatMap((source) => {
       const found = sources.find((entry) => entry.source === source);
-      if (found === undefined) {
-        throw new TypeError(`missing evidence source: ${source}`);
-      }
-      return found;
+      return found === undefined ? [] : [found];
     });
+    if (this.#sources.length === 0) {
+      throw new TypeError("catalog requires at least one evidence source");
+    }
   }
 
   async search(
@@ -367,7 +370,7 @@ export class CatalogService implements BookTitleCatalog {
     const editions: SourceRecord[] = [];
     const failures: SourceFailure[] = [];
     let sawFailure = false;
-    for (const canonicalRef of canonicalRefs) {
+    for (const canonicalRef of uniqueReferencesByNamespace(canonicalRefs)) {
       for (const source of this.#sources) {
         const outcome = await source.expandEditions(canonicalRef, options);
         if (outcome.status === "cancelled") return { status: "cancelled" };
@@ -476,7 +479,11 @@ export class CatalogService implements BookTitleCatalog {
     let sawFailure = false;
     const seen = new Set<string>();
 
-    for (const reference of registered.work.references) {
+    for (
+      const reference of uniqueReferencesByNamespace(
+        registered.work.references,
+      )
+    ) {
       for (const source of this.#sources) {
         const outcome = await source.expandEditions(reference, options);
         if (outcome.status === "cancelled") return { status: "cancelled" };
@@ -837,6 +844,17 @@ function sourceOfRecords(
     if (record.source === "openlibrary") return "openlibrary";
   }
   return records.find((record) => record.source === "wikidata")?.source;
+}
+
+function uniqueReferencesByNamespace(
+  references: readonly ExternalReference[],
+): readonly ExternalReference[] {
+  const seen = new Set<string>();
+  return references.filter((reference) => {
+    if (seen.has(reference.namespace)) return false;
+    seen.add(reference.namespace);
+    return true;
+  });
 }
 
 /** A candidate item built from the Work cluster of a resolved target. */
