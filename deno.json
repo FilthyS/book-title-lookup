@@ -15,6 +15,7 @@
     "exclude": [
       ".scratch",
       "spikes",
+      "fixtures",
       "**/*.md"
     ]
   },
@@ -29,7 +30,7 @@
     "fmt:check": "deno fmt --check",
     "lint": "deno lint",
     "check": "deno check",
-    "test": "deno test --no-prompt --allow-env=BOOK_TITLE_CONTACT,BOOK_TITLE_CACHE_DIR,BOOK_TITLE_OFFLINE,BOOK_TITLE_LOG_LEVEL,HOME,XDG_CONFIG_HOME,XDG_CACHE_HOME,LOCALAPPDATA,APPDATA,USERPROFILE --allow-run=deno --allow-read=. --allow-write=.",
+    "test": "deno test --no-prompt --allow-env=BOOK_TITLE_CONTACT,BOOK_TITLE_CACHE_DIR,BOOK_TITLE_OFFLINE,BOOK_TITLE_LOG_LEVEL,HOME,XDG_CONFIG_HOME,XDG_CACHE_HOME,LOCALAPPDATA,APPDATA,USERPROFILE --allow-run=deno --allow-read=.,fixtures/cli-json/schema,fixtures/cli-json/snapshots --allow-write=.",
     "cli": "deno run apps/tui/src/main.ts",
     "cli:version": "deno run apps/tui/src/main.ts --version",
     "cli:help": "deno run apps/tui/src/main.ts --help"

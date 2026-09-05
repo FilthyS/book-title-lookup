@@ -170,7 +170,7 @@ Deno.test("cli/args repeated single-value options are usage errors", () => {
   const language = ok([
     "titles",
     "--reference",
-    "a:b",
+    "openlibrary:work:OL1W",
     "--language",
     "es",
     "--language",

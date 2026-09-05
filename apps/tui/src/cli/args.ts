@@ -1,17 +1,25 @@
 /**
- * Option and command grammar for the issue #32 build.
+ * Option and command grammar for the book-title CLI (issue #12 section 3).
  *
- * Parses the frozen issue #12 surface for the maintenance slice: the global
- * options, the cache/config subcommand grammar, and the lookup commands'
- * grammar (so their help and option validation stay exact) without
- * dispatching lookup execution, which arrives in a later slice.
- *
- * Grammar rules applied here (issue #12 section 3.4): only long options;
- * `--flag value` and `--flag=value` are equivalent; a single-value option
- * given more than once is a usage error except `--language` (repeatable);
- * unknown options/commands, missing required options, conflicting options,
- * and unexpected positionals are usage errors; `--version` is top-level only.
+ * Parses the frozen surface for both the maintenance slice (cache/config)
+ * and the lookup slice (search/resolve/titles). Grammar rules: only long
+ * options; `--flag value` and `--flag=value` are equivalent; a single-value
+ * option given more than once is a usage error except `--language`
+ * (repeatable); unknown options/commands, missing required options,
+ * conflicting options, unexpected positionals, and invalid values are usage
+ * errors; `--version` is top-level only.
  */
+
+import {
+  canonicalizeBcp47,
+  canonicalizeIsbn,
+  isValidRequestedLanguage,
+} from "../../../../packages/core/src/normalize.ts";
+import type { ExternalReference } from "../../../../packages/core/src/module.ts";
+import type {
+  ExternalReferenceNamespace,
+  LanguageTag,
+} from "../../../../packages/core/src/domain.ts";
 
 export type CommandName = "search" | "resolve" | "titles" | "cache" | "config";
 export type LookupCommand = "search" | "resolve" | "titles";
@@ -32,13 +40,38 @@ export interface GlobalFlags {
   color: boolean;
 }
 
+export interface SearchQueryOptions {
+  readonly title: string;
+  readonly author?: string;
+  readonly isbn?: string;
+  readonly year?: number;
+}
+
+export type ResolveTargetOptions =
+  | { readonly kind: "isbn"; readonly value: string }
+  | { readonly kind: "reference"; readonly reference: ExternalReference };
+
 export type Invocation =
   | { readonly mode: "help"; readonly scope: HelpScope }
   | { readonly mode: "version" }
   | { readonly mode: "no_command"; readonly global: GlobalFlags }
   | {
     readonly mode: "lookup";
-    readonly command: LookupCommand;
+    readonly command: "search";
+    readonly query: SearchQueryOptions;
+    readonly global: GlobalFlags;
+  }
+  | {
+    readonly mode: "lookup";
+    readonly command: "resolve";
+    readonly target: ResolveTargetOptions;
+    readonly global: GlobalFlags;
+  }
+  | {
+    readonly mode: "lookup";
+    readonly command: "titles";
+    readonly reference: ExternalReference;
+    readonly languages: readonly LanguageTag[];
     readonly global: GlobalFlags;
   }
   | {
@@ -113,6 +146,13 @@ const VALUE_OPTIONS: ReadonlySet<string> = new Set([
   "--reference",
 ]);
 
+const REFERENCE_NAMESPACES: readonly ExternalReferenceNamespace[] = [
+  "openlibrary:work",
+  "openlibrary:edition",
+  "wikidata:item",
+  "isbn",
+];
+
 function usageError(message: string): ParseResult {
   return { ok: false, error: message };
 }
@@ -156,6 +196,40 @@ function findHelpScope(argv: readonly string[]): HelpScope {
   return { kind: "command", command };
 }
 
+interface ParsedCommandValues {
+  readonly values: Readonly<Record<string, string | readonly string[]>>;
+}
+
+function parseReference(
+  raw: string,
+): { readonly ok: true; readonly reference: ExternalReference } | {
+  readonly ok: false;
+  readonly error: string;
+} {
+  const lastColon = raw.lastIndexOf(":");
+  if (lastColon <= 0 || lastColon === raw.length - 1) {
+    return {
+      ok: false,
+      error: "malformed --reference: expected <namespace>:<value>",
+    };
+  }
+  const namespace = raw.slice(0, lastColon);
+  const value = raw.slice(lastColon + 1);
+  if (!(REFERENCE_NAMESPACES as readonly string[]).includes(namespace)) {
+    return {
+      ok: false,
+      error: `unsupported reference namespace: '${namespace}'`,
+    };
+  }
+  if (value.trim() === "") {
+    return { ok: false, error: "reference value must be non-empty" };
+  }
+  return {
+    ok: true,
+    reference: { namespace: namespace as ExternalReferenceNamespace, value },
+  };
+}
+
 export function parseArgs(argv: readonly string[]): ParseResult {
   // --help is processed before other behavior and prints the current scope.
   if (argv.includes("--help")) {
@@ -175,10 +249,21 @@ export function parseArgs(argv: readonly string[]): ParseResult {
   let cacheDirValue: string | undefined;
   const seenGlobal = new Set<string>();
   const seenPerCommand = new Set<string>();
+  const values = new Map<string, string | readonly string[]>();
   let command: CommandName | undefined;
   let operation: CacheOperation | undefined;
   const positionals: string[] = [];
   let versionRequested = false;
+
+  const recordValue = (name: string, value: string): void => {
+    const existing = values.get(name);
+    if (name === "--language") {
+      const list = Array.isArray(existing) ? existing : [];
+      values.set(name, [...list, value]);
+    } else {
+      values.set(name, value);
+    }
+  };
 
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i];
@@ -230,6 +315,7 @@ export function parseArgs(argv: readonly string[]): ParseResult {
       else if (name === "--no-color") global.noColor = true;
       else if (name === "--color") global.color = true;
       else if (name === "--version") versionRequested = true;
+      else if (value !== undefined) recordValue(name, value);
       continue;
     }
 
@@ -261,17 +347,16 @@ export function parseArgs(argv: readonly string[]): ParseResult {
     positionals.push(token);
   }
 
+  const globalForReturn = (): GlobalFlags => ({
+    ...global,
+    ...(cacheDirValue !== undefined ? { cacheDir: cacheDirValue } : {}),
+  });
+
   if (command === undefined) {
     if (versionRequested) return { ok: true, invocation: { mode: "version" } };
     return {
       ok: true,
-      invocation: {
-        mode: "no_command",
-        global: {
-          ...global,
-          ...(cacheDirValue !== undefined ? { cacheDir: cacheDirValue } : {}),
-        },
-      },
+      invocation: { mode: "no_command", global: globalForReturn() },
     };
   }
 
@@ -305,10 +390,7 @@ export function parseArgs(argv: readonly string[]): ParseResult {
           mode: "cache",
           operation: "show",
           digest: positionals[0],
-          global: {
-            ...global,
-            ...(cacheDirValue !== undefined ? { cacheDir: cacheDirValue } : {}),
-          },
+          global: globalForReturn(),
         },
       };
     }
@@ -317,14 +399,7 @@ export function parseArgs(argv: readonly string[]): ParseResult {
     }
     return {
       ok: true,
-      invocation: {
-        mode: "cache",
-        operation,
-        global: {
-          ...global,
-          ...(cacheDirValue !== undefined ? { cacheDir: cacheDirValue } : {}),
-        },
-      },
+      invocation: { mode: "cache", operation, global: globalForReturn() },
     };
   }
 
@@ -337,23 +412,66 @@ export function parseArgs(argv: readonly string[]): ParseResult {
     }
     return {
       ok: true,
+      invocation: { mode: "config", global: globalForReturn() },
+    };
+  }
+
+  const single = (name: string): string | undefined => {
+    const value = values.get(name);
+    return typeof value === "string" ? value : undefined;
+  };
+  const listOf = (name: string): readonly string[] => {
+    const value = values.get(name);
+    return Array.isArray(value) ? value : [];
+  };
+
+  if (command === "search") {
+    const title = single("--title")?.trim() ?? "";
+    if (title === "") {
+      return usageError(`missing required option: --title <text>`);
+    }
+    const author = single("--author")?.trim();
+    if (author === "") {
+      return usageError(`--author must be non-empty after trimming`);
+    }
+    const isbnRaw = single("--isbn");
+    if (isbnRaw !== undefined && !isValidIsbnSyntax(isbnRaw)) {
+      return usageError(
+        `--isbn contains invalid characters (spaces and hyphens excepted)`,
+      );
+    }
+    const yearRaw = single("--year");
+    let year: number | undefined;
+    if (yearRaw !== undefined) {
+      if (!/^[0-9]+$/.test(yearRaw)) {
+        return usageError(`--year must be an integer between 1 and 9999`);
+      }
+      year = Number(yearRaw);
+      if (year < 1 || year > 9999) {
+        return usageError(`--year must be an integer between 1 and 9999`);
+      }
+    }
+    const languages = validateLanguages(listOf("--language"));
+    if (!languages.ok) return usageError(languages.error);
+    return {
+      ok: true,
       invocation: {
-        mode: "config",
-        global: {
-          ...global,
-          ...(cacheDirValue !== undefined ? { cacheDir: cacheDirValue } : {}),
+        mode: "lookup",
+        command: "search",
+        query: {
+          title,
+          ...(author !== undefined ? { author } : {}),
+          ...(isbnRaw !== undefined ? { isbn: canonicalizeIsbn(isbnRaw) } : {}),
+          ...(year !== undefined ? { year } : {}),
         },
+        global: globalForReturn(),
       },
     };
   }
 
-  if (command === "search") {
-    if (!seenPerCommand.has("--title")) {
-      return usageError(`missing required option: --title <text>`);
-    }
-  } else if (command === "resolve") {
-    const hasIsbn = seenPerCommand.has("--isbn");
-    const hasReference = seenPerCommand.has("--reference");
+  if (command === "resolve") {
+    const hasIsbn = values.has("--isbn");
+    const hasReference = values.has("--reference");
     if (hasIsbn && hasReference) {
       return usageError(
         `options --isbn and --reference conflict; supply exactly one`,
@@ -364,23 +482,77 @@ export function parseArgs(argv: readonly string[]): ParseResult {
         `missing required option: --isbn <text> or --reference <namespace>:<value>`,
       );
     }
-  } else if (command === "titles") {
-    if (!seenPerCommand.has("--reference")) {
-      return usageError(
-        `missing required option: --reference <namespace>:<value>`,
-      );
+    if (hasIsbn) {
+      const raw = single("--isbn") ?? "";
+      if (!isValidIsbnSyntax(raw)) {
+        return usageError(
+          `--isbn contains invalid characters (spaces and hyphens excepted)`,
+        );
+      }
+      return {
+        ok: true,
+        invocation: {
+          mode: "lookup",
+          command: "resolve",
+          target: { kind: "isbn", value: canonicalizeIsbn(raw) },
+          global: globalForReturn(),
+        },
+      };
     }
+    const parsedRef = parseReference(single("--reference") ?? "");
+    if (!parsedRef.ok) return usageError(parsedRef.error);
+    return {
+      ok: true,
+      invocation: {
+        mode: "lookup",
+        command: "resolve",
+        target: { kind: "reference", reference: parsedRef.reference },
+        global: globalForReturn(),
+      },
+    };
   }
 
+  // titles
+  const parsedTitlesRef = parseReference(single("--reference") ?? "");
+  if (!parsedTitlesRef.ok) return usageError(parsedTitlesRef.error);
+  const languages = validateLanguages(listOf("--language"));
+  if (!languages.ok) return usageError(languages.error);
   return {
     ok: true,
     invocation: {
       mode: "lookup",
-      command,
-      global: {
-        ...global,
-        ...(cacheDirValue !== undefined ? { cacheDir: cacheDirValue } : {}),
-      },
+      command: "titles",
+      reference: parsedTitlesRef.reference,
+      languages: languages.value,
+      global: globalForReturn(),
     },
   };
+}
+
+function isValidIsbnSyntax(raw: string): boolean {
+  const cleaned = raw.replace(/[\s-]/g, "").toUpperCase();
+  if (/^[0-9]{9}[0-9X]$/.test(cleaned) || /^[0-9]{13}$/.test(cleaned)) {
+    return true;
+  }
+  return false;
+}
+
+function validateLanguages(
+  raw: readonly string[],
+): { readonly ok: true; readonly value: readonly LanguageTag[] } | {
+  readonly ok: false;
+  readonly error: string;
+} {
+  const out: LanguageTag[] = [];
+  for (const tag of raw) {
+    if (!isValidRequestedLanguage(tag)) {
+      return {
+        ok: false,
+        error:
+          `invalid language tag: '${tag}' (sentinels und/mul cannot be requested)`,
+      };
+    }
+    out.push(canonicalizeBcp47(tag) as LanguageTag);
+  }
+  return { ok: true, value: out };
 }

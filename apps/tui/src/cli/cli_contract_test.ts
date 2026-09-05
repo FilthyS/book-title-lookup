@@ -387,10 +387,11 @@ Deno.test("cli X26 --flag value and --flag=value forms are equivalent", async ()
 });
 
 // ---------------------------------------------------------------------------
-// Lookup commands are never dispatched in this slice
+// Lookup commands dispatch over the fixture catalog (issue #12 rows are
+// asserted in cli_lookup_contract_test.ts)
 // ---------------------------------------------------------------------------
 
-Deno.test("cli lookup commands parse but dispatch is unavailable in this build", async () => {
+Deno.test("cli lookup commands parse and dispatch over the fixture catalog", async () => {
   const scratch = await makeScratch("lookup");
   try {
     const parsed = parseArgs(["search", "--title", "百年孤独"]);
@@ -401,10 +402,17 @@ Deno.test("cli lookup commands parse but dispatch is unavailable in this build",
     assertEquals(parsed.invocation.command, "search");
 
     const { deps } = makeDeps({ env: defaultEnv(scratch) });
-    const run = await runCliOut(["search", "--title", "百年孤独"], deps);
-    assertEquals(run.code, 2);
-    assertEquals(run.stdout, "");
-    assertMatch(run.stderr, /not available in this build/);
+    const run = await runCliOut(
+      ["search", "--title", "百年孤独", "--json"],
+      deps,
+    );
+    assertEquals(run.code, 3);
+    const doc = JSON.parse(run.stdout) as {
+      status: string;
+      candidates: unknown[];
+    };
+    assertEquals(doc.status, "found");
+    assert(doc.candidates.length > 0);
   } finally {
     await removeScratch(scratch);
   }
