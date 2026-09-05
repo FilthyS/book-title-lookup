@@ -69,10 +69,10 @@ export const TARGETS: readonly TargetInfo[] = [
     packageName: platformPackageName("darwin", "x64"),
     binaryFile: "book-title",
     description: "darwin/x64",
-    // macos-15-large is the currently available Intel x64 hosted label.
+    // macos-15-intel is the standard Intel x64 hosted label.
     // The darwin ARM64 target stays on macos-14 (see the frozen matrix in
     // npm-release-topology.md section 4; labels adjust when the host changes).
-    runner: "macos-15-large",
+    runner: "macos-15-intel",
   },
   {
     denoTarget: "aarch64-apple-darwin",
