@@ -116,7 +116,7 @@ packages:
 | --- | --- | --- |
 | `book-title-lookup-win32-x64` | `x86_64-pc-windows-msvc` | `windows-latest` (x64) |
 | `book-title-lookup-linux-x64` | `x86_64-unknown-linux-gnu` | `ubuntu-latest` (x64, glibc) |
-| `book-title-lookup-darwin-x64` | `x86_64-apple-darwin` | `macos-13` (x64) |
+| `book-title-lookup-darwin-x64` | `x86_64-apple-darwin` | `macos-15-intel` (Intel x64) |
 | `book-title-lookup-darwin-arm64` | `aarch64-apple-darwin` | `macos-14` (arm64) |
 
 Runner labels are the implementation-time values to use where the architecture

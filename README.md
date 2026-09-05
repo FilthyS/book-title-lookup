@@ -114,6 +114,64 @@ $env:BOOK_TITLE_CACHE_DIR="./cache-tmp"; $env:BOOK_TITLE_CONTACT="you@example.co
 deno run --allow-net=openlibrary.org apps/tui/src/main.ts search --title 百年孤独 --json
 ```
 
+### Distribution (build only; never publishes)
+
+The distribution slice packages the application as release-shaped artifacts
+and runs the dry-run/tarball gates (ticket #20 / section 6.6;
+docs/design/npm-release-topology.md). None of the commands below can publish:
+there is no `npm publish` path, no registry token, and no publish workflow.
+
+**Single version stamp.** Every package in a release carries exactly one
+version, derived in precedence order:
+
+1. the `BOOK_TITLE_RELEASE_VERSION` environment variable (explicit override), then
+2. the exact git tag `v<version>` on `HEAD`, then
+3. the default development stamp, in lockstep with the app's `0.1.0` version.
+
+The source templates under `distribution/npm/` keep the placeholder `0.0.0`;
+only generated (stamped) copies under `dist/` carry a real version.
+
+**Launcher contract tests** run the real Node launcher against a native stub
+binary and are excluded from the fast `deno task test` suite (they need `node`
+and a one-off `deno compile`). Run them with the dedicated root task that CI
+and the verify workflow invoke:
+
+```console
+deno task test:launcher
+```
+
+**Compile, pack (dry-run), manifest, verify.** Compile a target with
+`deno compile` (native smoke runs the result directly, product gate G10). On a
+single non-native host, pass `--stubs` to fill the other platform packages
+from the committed fixture stubs so the whole tarball/manifest pipeline can be
+exercised without cross-compiling:
+
+```console
+# native win32/x64 compile (product gate G10)
+deno run --allow-run=deno --allow-read --allow-write \
+  distribution/scripts/compile.ts --target x86_64-pc-windows-msvc
+
+# produce npm package trees + tarballs under dist/ (never publishes)
+deno run --allow-env=BOOK_TITLE_RELEASE_VERSION --allow-run=npm,git \
+  --allow-read --allow-write distribution/scripts/pack.ts --dry-run --stubs
+
+# write the artifact manifest (names, versions, tarball digests, file lists)
+deno run --allow-read --allow-write distribution/scripts/manifest.ts
+
+# re-check npm pack dry-run file lists, tarball hashes, and the manifest
+deno run --allow-run=npm --allow-read --allow-write \
+  distribution/scripts/verify.ts
+```
+
+Inspect the resulting tarballs under `dist/tarballs/` (file lists, the launcher
+shebang, and Linux/macOS executable bits are enforced on their native runners;
+Windows has no POSIX executable bit). The equivalent build and verify gates
+run in CI through `.github/workflows/build.yml` and `verify.yml`.
+
+**Publishing stays out of scope.** Publication is a separate, explicitly
+authorized operation that is not implemented here and is not part of any
+template.
+
 ## License
 
 [MIT](./LICENSE)
