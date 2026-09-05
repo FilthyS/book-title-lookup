@@ -1,0 +1,3 @@
+# Deno 2.9 formatters write LF and deno fmt --check fails on CRLF text.
+# .editorconfig also declares end_of_line = lf, so pin LF for every checkout.
+* text=auto eol=lf

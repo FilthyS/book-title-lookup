@@ -1,6 +1,7 @@
 {
   "fmt": {
     "exclude": [
+      ".scratch",
       "**/*.md"
     ]
   },
