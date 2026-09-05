@@ -6,7 +6,8 @@
   ],
   "exclude": [
     ".scratch",
-    "spikes"
+    "spikes",
+    "distribution/scripts/launcher_contract_test.ts"
   ],
   "imports": {
     "@std/assert": "jsr:@std/assert@1.0.19",
@@ -35,6 +36,7 @@
     "cli": "deno run apps/tui/src/main.ts",
     "cli:version": "deno run apps/tui/src/main.ts --version",
     "cli:help": "deno run apps/tui/src/main.ts --help",
+    "test:launcher": "deno test --config distribution/scripts/launcher-test.deno.json --no-prompt --allow-run=deno,node --allow-read=. --allow-write=. distribution/scripts/launcher_contract_test.ts",
     "test:live-smoke": "deno run --no-prompt --allow-env=BOOK_TITLE_CONTACT,BOOK_TITLE_CACHE_DIR,BOOK_TITLE_OFFLINE,BOOK_TITLE_LOG_LEVEL,HOME,XDG_CONFIG_HOME,XDG_CACHE_HOME,LOCALAPPDATA,APPDATA,USERPROFILE --allow-read=. --allow-write=. --allow-net=openlibrary.org apps/tui/src/smoke/live-smoke.ts"
   }
 }

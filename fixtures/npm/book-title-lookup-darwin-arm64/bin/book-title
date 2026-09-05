@@ -1,0 +1,5 @@
+#!/usr/bin/env node
+// Committed launcher test/contract stub (fixtures/npm). See linux-x64.
+"use strict";
+process.stdout.write("stub-ok " + process.argv.slice(2).join(" ") + "\n");
+process.exit(0);

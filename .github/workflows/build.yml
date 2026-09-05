@@ -1,0 +1,127 @@
+name: build
+
+# Workspace verification and distribution build gates (issue #37 / ticket #20
+# section 6.6). This workflow is a build-and-verify template only: it runs the
+# shared task surface, the four-target `deno compile` matrix with native smoke
+# on matching runners, and the launcher contract tests. It never publishes: no
+# registry token, no OIDC, no `npm publish`, and no protected environment. A
+# separately authorized release operation owns any future publication.
+#
+# Template note: this file is intentionally not executed by a local worker; it
+# is reviewed as a template and validated on GitHub-hosted runners.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workspace:
+    name: fmt / lint / check / test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Format check
+        run: deno task fmt:check
+      - name: Lint
+        run: deno task lint
+      - name: Type check
+        run: deno task check
+      - name: Test
+        run: deno task test
+      - name: Whitespace check
+        run: git diff --check
+
+  # Launcher contract tests spawn the real Node launcher and compile a native
+  # stub on the current host, so they must run once per supported platform.
+  launcher-contract:
+    name: launcher contract (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - macos-13
+          - macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Launcher contract tests
+        run: deno task test:launcher
+
+  # Four-target `deno compile` matrix with native smoke on a matching runner
+  # (npm-release-topology.md sections 4 and 11.3; product gates G6/G10). The
+  # produced binary must start and honor the documented no-command/--version
+  # behavior on its own platform.
+  compile-smoke:
+    name: compile + smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            deno-target: x86_64-pc-windows-msvc
+            package: book-title-lookup-win32-x64
+            bin: book-title.exe
+          - os: ubuntu-latest
+            deno-target: x86_64-unknown-linux-gnu
+            package: book-title-lookup-linux-x64
+            bin: book-title
+          - os: macos-13
+            deno-target: x86_64-apple-darwin
+            package: book-title-lookup-darwin-x64
+            bin: book-title
+          - os: macos-14
+            deno-target: aarch64-apple-darwin
+            package: book-title-lookup-darwin-arm64
+            bin: book-title
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Compile native target
+        run: >-
+          deno run --allow-run=deno --allow-read --allow-write
+          distribution/scripts/compile.ts --target ${{ matrix.deno-target }}
+      - name: Native smoke --version
+        shell: bash
+        run: |
+          BIN="dist/binaries/${{ matrix.package }}/${{ matrix.bin }}"
+          "$BIN" --version
+      - name: Native smoke no-command exits 2
+        shell: bash
+        run: |
+          BIN="dist/binaries/${{ matrix.package }}/${{ matrix.bin }}"
+          set +e
+          "$BIN" >/dev/null 2>&1
+          code=$?
+          set -e
+          if [ "$code" -ne 2 ]; then
+            echo "expected no-command exit 2, got $code" >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.package }}
+          path: dist/binaries/${{ matrix.package }}/
+          if-no-files-found: error
+          retention-days: 3

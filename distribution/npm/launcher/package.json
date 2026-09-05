@@ -1,0 +1,22 @@
+{
+  "name": "book-title-lookup",
+  "version": "0.0.0",
+  "description": "Find attested titles of the same book across languages.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "book-title": "bin/book-title.js"
+  },
+  "files": [
+    "bin/"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "book-title-lookup-win32-x64": "0.0.0",
+    "book-title-lookup-linux-x64": "0.0.0",
+    "book-title-lookup-darwin-x64": "0.0.0",
+    "book-title-lookup-darwin-arm64": "0.0.0"
+  }
+}

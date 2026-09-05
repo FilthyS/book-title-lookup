@@ -1,0 +1,4 @@
+# Committed launcher test/contract stub (fixtures/npm).
+# This stub replaces the compiled book-title.exe only for packaging-mechanics
+# dry-runs and file-layout checks. It is never shipped.
+stub-binary-win32-x64-not-shipped

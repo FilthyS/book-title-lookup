@@ -1,0 +1,6 @@
+# Platform binaries live here in the packed package.
+
+This directory is intentionally empty in the source template. The pack script
+writes the compiled (or, for a source dry-run, the committed fixture stub)
+binary into a stamped copy under `dist/npm/`; it never touches this template.
+No compiled binary is ever committed to the repository.
