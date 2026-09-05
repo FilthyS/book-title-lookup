@@ -1,6 +1,6 @@
 # npm Binary Distribution
 
-Research deliverable for GitHub issue #4 鈥?input to ADR #11. Scope: design and constraints for distributing precompiled `deno compile` binaries through npm with a Node launcher, no install-time downloads, and no second application runtime. Primary documentation was retrieved on 2026-09-05; URLs are listed in the Primary References section. This document reports documented behavior and clearly marks every claim that is inference or still requires a probe. No probe results are reported here. Research only: no release workflow or production files are proposed.
+Research deliverable for GitHub issue #4 — input to Issue #11. Scope: design and constraints for distributing precompiled `deno compile` binaries through npm with a Node launcher, no install-time downloads, and no second application runtime. Primary documentation was retrieved on 2026-09-05; URLs are listed in the Primary References section. This document reports documented behavior and clearly marks every claim that is inference or still requires a probe. No probe results are reported here. Research only: no release workflow or production files are proposed.
 
 ## 1. Purpose and Method
 
@@ -12,7 +12,7 @@ The deliverable translates the established architecture and ADR 0003 into concre
 
 - Derive requirements from `docs/architecture.md` (Distribution, CLI and Process Contract, Permissions, Testing) and `docs/adr/0003-distribute-deno-binaries-through-npm.md`.
 - State what npm, Node, Deno, and GitHub Actions document as guarantees.
-- State what is inference or unresolved, and what must be probed before ADR #11 can be finalized.
+- State what is inference or unresolved, and what must be probed before Issue #11 can be resolved.
 - Report no experimental results, because none were run for this research issue.
 
 The central design constraint is: one application runtime (the Deno-compiled binary), one installation channel (npm), a small Node process spawner, no `postinstall` downloads, and no `install` or `postinstall` scripts in any published package.
@@ -42,23 +42,23 @@ The root launcher package declares platform packages as optional dependencies. E
 
 ```text
 book-title-lookup@1.2.3                     root launcher (npm bin)
-鈹溾攢鈹€ bin/book-title.js                       Node launcher (spawner only)
-鈹溾攢鈹€ package.json
-鈹斺攢鈹€ optionalDependencies (exact version)
-    鈹溾攢鈹€ book-title-lookup-win32-x64@1.2.3   os: win32, cpu: x64
-    鈹溾攢鈹€ book-title-lookup-linux-x64@1.2.3   os: linux,  cpu: x64
-    鈹溾攢鈹€ book-title-lookup-darwin-x64@1.2.3  os: darwin, cpu: x64
-    鈹斺攢鈹€ book-title-lookup-darwin-arm64@1.2.3 os: darwin, cpu: arm64
+├── bin/book-title.js                       Node launcher (spawner only)
+├── package.json
+└── optionalDependencies (exact version)
+    ├── book-title-lookup-win32-x64@1.2.3   os: win32, cpu: x64
+    ├── book-title-lookup-linux-x64@1.2.3   os: linux,  cpu: x64
+    ├── book-title-lookup-darwin-x64@1.2.3  os: darwin, cpu: x64
+    └── book-title-lookup-darwin-arm64@1.2.3 os: darwin, cpu: arm64
 
 book-title-lookup-win32-x64@1.2.3
-鈹溾攢鈹€ index.js                                module.exports = path to binary
-鈹溾攢鈹€ bin/book-title.exe
-鈹斺攢鈹€ package.json
+├── index.js                                module.exports = path to binary
+├── bin/book-title.exe
+└── package.json
 
 book-title-lookup-linux-x64@1.2.3
-鈹溾攢鈹€ index.js
-鈹溾攢鈹€ bin/book-title
-鈹斺攢鈹€ package.json
+├── index.js
+├── bin/book-title
+└── package.json
 
 book-title-lookup-darwin-x64@1.2.3          same shape
 book-title-lookup-darwin-arm64@1.2.3        same shape
@@ -256,7 +256,7 @@ Documented and inferred points:
 - On Windows, `child.kill()` terminates the process; Windows does not have POSIX signals. Ctrl+C in a console is delivered as a console control event to processes attached to the console. The launcher must not assume `child.kill("SIGINT")` behaves like POSIX. The exact Windows Ctrl+C behavior when a Node parent spawns a native child with inherited stdio must be probed on Windows Terminal as part of the acceptance checklist.
 - The launcher should wait for the child to exit before exiting itself. If the launcher exits immediately on a signal while the child is still performing cleanup, npm or a shell may consider the command finished and the terminal may be restored before the child finishes.
 - The application's documented exit codes (0, 2, 3, 4, 5, 10, 130) are owned by the Deno binary and must pass through unmodified.
-- A missing platform package is not one of the application's semantic outcomes. It is a distribution failure. The launcher should use a reserved launcher-only code (the sketch uses 70) so that scripts can distinguish "binary distribution problem" from lookup outcomes. This reservation should be recorded as an ADR #11 input.
+- A missing platform package is not one of the application's semantic outcomes. It is a distribution failure. The launcher should use a reserved launcher-only code (the sketch uses 70) so that scripts can distinguish "binary distribution problem" from lookup outcomes. This reservation should be recorded as an Issue #11 input.
 
 ### 5.5 Unsupported platform and omitted optional dependency
 
@@ -339,7 +339,7 @@ The Linux libc question is a genuine decision input to #11, not a detail:
 - Option A: publish one Linux x64 package, target the GNU toolchain, and treat musl distributions as unsupported with an actionable message or a GitHub Release asset fallback.
 - Option B: publish separate glibc and musl packages named distinctly (for example `...-linux-x64` and `...-linux-x64-musl` or `...-linux-x64-gnu`), with `libc` metadata where the package manager supports it and launcher-side runtime detection where it does not.
 
-Option B raises the release complexity materially and depends on Deno producing a musl `deno compile` output. The probe phase must determine Deno's actual musl support before ADR #11 can choose.
+Option B raises the release complexity materially and depends on Deno producing a musl `deno compile` output. The probe phase must determine Deno's actual musl support before Issue #11 can choose.
 
 ## 9. Lockstep Versions and Checksums
 
@@ -358,7 +358,7 @@ Enforcement mechanisms:
 
 npm records `integrity` in lockfiles and verifies it on install by default. That protects installs against tampering during transport. The registry also publishes the tarball with its own digest. The project should additionally keep the build manifest described above so that post-publish verification can compare the published `dist.integrity` and tarball digest against locally computed values.
 
-An extra launcher-side checksum check (the launcher recomputing a file hash before spawn) is possible but expensive for large binaries. It is not required given npm integrity and Sigstore-backed provenance; whether to add it is an ADR #11 input. If adopted, the checksum must be embedded at build time and must not become a release-blocking mismatch on platforms where the binary is legitimately signed or modified by the distributor.
+An extra launcher-side checksum check (the launcher recomputing a file hash before spawn) is possible but expensive for large binaries. It is not required given npm integrity and Sigstore-backed provenance; whether to add it is an Issue #11 input. If adopted, the checksum must be embedded at build time and must not become a release-blocking mismatch on platforms where the binary is legitimately signed or modified by the distributor.
 
 ## 10. Provenance, Attestations, and Least-Privilege Tokens
 
@@ -525,11 +525,11 @@ Pre-publication gates, all runnable in CI:
 - The behavior of `process.report.getReport().header.glibcVersionRuntime` across supported Node versions and platforms.
 - macOS ARM64 hosted runner availability and labels for the CI matrix.
 
-No probe results are reported because no probes were executed. The probes above are the minimal set ADR #11 needs before the release workflow is built.
+No probe results are reported because no probes were executed. The probes above are the minimal set Issue #11 needs before the release workflow is built.
 
-## 16. Concrete Decision Inputs to ADR #11
+## 16. Concrete Decision Inputs to Issue #11
 
-1. Confirm the six package names are final before first publication, including whether the name is scoped, since rename is effectively impossible afterward.
+1. Confirm the five package names in the current matrix are final before first publication, including whether the name is scoped, since rename is effectively impossible afterward.
 2. Select the Linux strategy: one GNU-target x64 package with actionable unsupported messaging for musl, or separate glibc/musl packages whose feasibility depends on Deno musl compile support.
 3. Decide whether the launcher supports only the documented matrix or also a "best-effort spawn" path for future packages such as `linux-arm64`.
 4. Reserve a launcher-level exit code for distribution failure (the sketch uses 70) and document that it is distinct from the application's semantic exit codes.
@@ -585,6 +585,6 @@ Information state: retrieved 2026-09-05. URLs are the primary documentation loca
 
 ### Project documentation (authoritative constraints, not external references)
 
-- `docs/architecture.md` 鈥?Distribution, CLI and Process Contract, Permissions, Testing.
-- `docs/adr/0003-distribute-deno-binaries-through-npm.md` 鈥?accepted distribution decision.
-- `docs/product-spec.md` 鈥?npm launcher and distribution acceptance criteria.
+- `docs/architecture.md` — Distribution, CLI and Process Contract, Permissions, Testing.
+- `docs/adr/0003-distribute-deno-binaries-through-npm.md` — accepted distribution decision.
+- `docs/product-spec.md` — npm launcher and distribution acceptance criteria.
