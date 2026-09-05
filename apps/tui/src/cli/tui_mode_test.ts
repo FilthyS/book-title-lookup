@@ -93,6 +93,7 @@ function makeDeps(options: {
   readonly writes: string[];
   readonly raws: boolean[];
   readonly env?: EnvironmentReader;
+  readonly signal?: AbortSignal;
 }): Built {
   const stdout = writer();
   const stderr = writer();
@@ -109,6 +110,7 @@ function makeDeps(options: {
       platform,
       clock: new FixedClock(FIXED),
       random: systemRandomSource,
+      signal: options.signal,
       catalog: createFakeBookTitleCatalog(),
       tui: {
         stdinIsTty: options.stdinIsTty,
@@ -133,6 +135,26 @@ Deno.test("X6 no-command TTY without --json starts the TUI and exits 0 on quit",
   assertEquals(term.raws, [true, false], "terminal was acquired and restored");
   const output = term.writes.join("");
   assertEquals(output.includes("Book Title Lookup"), true);
+});
+
+Deno.test("no-command TUI exits 130 and restores on an injected OS signal abort", async () => {
+  // An empty terminal stream reaches EOF immediately; the session then waits
+  // for an outcome or an external interrupt. Aborting the injected signal
+  // (OS SIGINT/SIGTERM) must drive exit 130 through the coordinator.
+  const controller = new AbortController();
+  const term = makeTerminal([]);
+  const built = makeDeps({
+    stdinIsTty: true,
+    stdoutIsTty: true,
+    signal: controller.signal,
+    ...term,
+  });
+  const run = runCli([], built.deps);
+  controller.abort();
+  const code = await run;
+  assertEquals(code, 130);
+  assertEquals(built.stdout.text(), "", "no CLI usage on stdout in TUI mode");
+  assertEquals(term.raws, [true, false], "terminal was acquired and restored");
 });
 
 Deno.test("X7 no-command with --json never starts the TUI or acquires a terminal", async () => {

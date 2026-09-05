@@ -198,7 +198,11 @@ async function runTui(global: GlobalFlags, deps: CliDeps): Promise<number> {
     if (!resolved.ok) return resolved.code;
     catalog = resolved.catalog;
   }
-  return await runTuiSession({ io: deps.tui.io, catalog });
+  return await runTuiSession({
+    io: deps.tui.io,
+    catalog,
+    signal: deps.signal,
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -58,6 +58,10 @@ export interface RunTuiOptions {
   readonly catalog: BookTitleCatalog;
   readonly ids?: RequestIdSource;
   readonly seed?: SessionState;
+  /** OS SIGINT/SIGTERM signal (issue #13 section 13.3). When it aborts, the
+   *  session dispatches a coordinator `interrupt`, aborts any in-flight
+   *  request, restores the terminal, and exits 130. */
+  readonly signal?: AbortSignal;
 }
 
 type RequestEffect = Extract<
@@ -139,6 +143,10 @@ class InteractiveSession {
   #outcomes: Message[] = [];
   #outcomeWaiter: (() => void) | null = null;
 
+  #signal: AbortSignal | undefined;
+  #interruptQueued = false;
+  #interruptWaiter: (() => void) | null = null;
+
   #exitCode: number | undefined;
   #groupSelection = 0;
   #wasTitles = false;
@@ -149,15 +157,21 @@ class InteractiveSession {
     this.#ids = options.ids ?? fixedRequestIds();
     this.#terminal = new TerminalController(this.#io);
     this.#state = options.seed ?? initialSession();
+    this.#signal = options.signal;
   }
 
   async run(): Promise<number> {
-    await this.#terminal.acquire();
+    this.#armSignalInterrupt();
     try {
+      // acquire is inside the guarded scope so a partial acquire is still
+      // restored by release() in the finally block (issue #13 section 13.3).
+      await this.#terminal.acquire();
       this.#paint();
       while (this.#exitCode === undefined) {
         const event = await this.#nextEvent();
-        if (event === "outcome") {
+        if (event === "interrupt") {
+          this.#dispatch({ type: "interrupt" });
+        } else if (event === "outcome") {
           const message = this.#outcomes.shift() as Message;
           this.#dispatch(message);
         } else if (event === "token") {
@@ -167,29 +181,37 @@ class InteractiveSession {
         // "eof" keeps waiting only for outcomes; a terminal session ends via
         // an explicit quit or interrupt, so a dropped stream is never fatal.
       }
+      return this.#exitCode ?? 0;
     } finally {
       this.#abortAll();
       await this.#terminal.release();
     }
-    return this.#exitCode ?? 0;
   }
 
   // -------------------------------------------------------------------------
   // Event loop
   // -------------------------------------------------------------------------
 
-  /** Resolve the next of: a buffered outcome, a buffered key token, a future
-   *  outcome, or a future key token. Returns the kind of event that won. */
-  #nextEvent(): Promise<"outcome" | "token" | "eof"> {
+  /** Resolve the next of: an injected-signal interrupt, a buffered outcome, a
+   *  buffered key token, a future outcome, or a future key token. Returns the
+   *  kind of event that won. */
+  #nextEvent(): Promise<"outcome" | "token" | "eof" | "interrupt"> {
+    if (this.#interruptQueued) return Promise.resolve("interrupt");
     if (this.#outcomes.length > 0) return Promise.resolve("outcome");
     if (this.#tokens.length > 0) return Promise.resolve("token");
+    const interruptP = this.#waitForInterrupt().then(() =>
+      "interrupt" as const
+    );
     if (this.#inputEnded) {
-      // Only outcomes can still arrive.
-      return this.#waitForOutcome().then(() => "outcome");
+      // Only outcomes or an external signal can still arrive.
+      return Promise.race([
+        this.#waitForOutcome().then(() => "outcome" as const),
+        interruptP,
+      ]);
     }
     const outcomeP = this.#waitForOutcome().then(() => "outcome" as const);
     const tokenP = this.#pullToken().then((kind) => kind);
-    return Promise.race([outcomeP, tokenP]);
+    return Promise.race([outcomeP, tokenP, interruptP]);
   }
 
   /** Pull reads until a token is decoded or input ends. */
@@ -214,10 +236,41 @@ class InteractiveSession {
     });
   }
 
+  #waitForInterrupt(): Promise<void> {
+    if (this.#interruptQueued) return Promise.resolve();
+    return new Promise((resolve) => {
+      this.#interruptWaiter = resolve;
+    });
+  }
+
   #wakeOutcomeWaiters(): void {
     if (this.#outcomeWaiter !== null) {
       const waiter = this.#outcomeWaiter;
       this.#outcomeWaiter = null;
+      waiter();
+    }
+  }
+
+  /** On OS SIGINT/SIGTERM the injected signal aborts: queue an `interrupt`
+   *  that the event loop dispatches so the reducer aborts any in-flight
+   *  request and returns the 130 exit effect (issue #13 section 13.3). */
+  #armSignalInterrupt(): void {
+    if (this.#signal === undefined) return;
+    if (this.#signal.aborted) {
+      this.#queueInterrupt();
+      return;
+    }
+    this.#signal.addEventListener("abort", () => this.#queueInterrupt(), {
+      once: true,
+    });
+  }
+
+  #queueInterrupt(): void {
+    if (this.#interruptQueued) return;
+    this.#interruptQueued = true;
+    if (this.#interruptWaiter !== null) {
+      const waiter = this.#interruptWaiter;
+      this.#interruptWaiter = null;
       waiter();
     }
   }

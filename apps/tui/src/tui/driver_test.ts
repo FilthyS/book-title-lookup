@@ -173,6 +173,68 @@ Deno.test("driver runs a search to candidates and restores on interrupt", async 
   assertEquals(output.endsWith("\x1b[?25h\x1b[?1049l\x1b[0m"), true);
 });
 
+Deno.test("driver dispatches interrupt from an injected OS signal abort", async () => {
+  const controller = new AbortController();
+  const term = deferredIo();
+  const catalog = new ScriptedCatalog();
+  const run = runTuiSession({
+    io: term.io,
+    catalog,
+    signal: controller.signal,
+  });
+
+  await sleep();
+  // Start a search that stays pending.
+  term.deliver([...encoder.encode("围城"), 0x0d]);
+  await sleep();
+  assertEquals(catalog.pendingSearches.length, 1);
+  const call = catalog.pendingSearches[0];
+
+  // The injected signal fires (OS SIGINT/SIGTERM), not a Ctrl+C byte.
+  controller.abort();
+  const code = await run;
+
+  assertEquals(code, 130);
+  assertEquals(call.signal.aborted, true, "in-flight request was aborted");
+  // Terminal was acquired then restored, so an external interrupt also
+  // restores the terminal before the process exits 130.
+  assertEquals(term.raws, [true, false]);
+  assertEquals(
+    allWrites(term.writes).endsWith("\x1b[?25h\x1b[?1049l\x1b[0m"),
+    true,
+  );
+});
+
+Deno.test("driver releases a partial acquire when terminal acquire fails", async () => {
+  const raws: boolean[] = [];
+  // Raw mode succeeds but the alternate-screen write fails mid-acquire.
+  const io: TerminalIo = {
+    read(): Promise<Uint8Array | null> {
+      return Promise.resolve(null);
+    },
+    write(): Promise<void> {
+      return Promise.reject(new Error("write failed"));
+    },
+    setRawMode(raw: boolean): Promise<void> {
+      raws.push(raw);
+      return Promise.resolve();
+    },
+    size(): TerminalSize {
+      return SIZE;
+    },
+  };
+  const catalog = new ScriptedCatalog();
+  const run = runTuiSession({ io, catalog });
+  await run.then(
+    () => {
+      throw new Error("run should have rejected on acquire failure");
+    },
+    () => {},
+  );
+  // Raw mode was turned on, then restored despite the failed acquire.
+  assertEquals(raws, [true, false]);
+});
+
 Deno.test("driver quits normally from the query screen with exit 0", async () => {
   const term = deferredIo();
   const catalog = new ScriptedCatalog();
