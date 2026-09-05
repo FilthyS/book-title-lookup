@@ -1,14 +1,21 @@
 /**
- * apps/tui composition root (issue #32 / ticket #15, extended for lookup).
+ * apps/tui composition root (issue #32 / ticket #15, extended for lookup and
+ * the interactive TUI).
  *
  * Wires the real streams, environment reader, filesystem seam, platform kind,
  * clock, and randomness into the CLI driver, owns the SIGINT/SIGTERM abort
  * controller, and maps the returned exit code onto the process. Lookup
  * commands run one-shot directed sessions over the fixture catalog in this
- * slice; the full-screen TUI arrives in a later slice.
+ * slice; a no-command run in a terminal starts the interactive TUI over the
+ * real two-source composition.
  */
 
-import { type CliDeps, runCli, type TextWriter } from "./cli/dispatch.ts";
+import {
+  type CliDeps,
+  runCli,
+  type TextWriter,
+  type TuiDeps,
+} from "./cli/dispatch.ts";
 import {
   systemEnvironment,
 } from "../../../packages/providers/src/platform/env.ts";
@@ -22,6 +29,7 @@ import { systemClock } from "../../../packages/providers/src/cache/clock.ts";
 import {
   systemRandomSource,
 } from "../../../packages/providers/src/cache/random.ts";
+import type { TerminalIo } from "./tui/terminal.ts";
 
 const encoder = new TextEncoder();
 
@@ -34,6 +42,38 @@ function syncWriter(stream: {
       return Promise.resolve();
     },
   };
+}
+
+function readChunk(): Promise<Uint8Array | null> {
+  const buffer = new Uint8Array(256);
+  return Deno.stdin.read(buffer).then((read) =>
+    read === null ? null : buffer.slice(0, read)
+  );
+}
+
+function tuiIo(): TerminalIo {
+  const write = syncWriter(Deno.stdout);
+  return {
+    read: readChunk,
+    write: (text: string) => write.write(text),
+    setRawMode: (raw: boolean): Promise<void> => {
+      Deno.stdin.setRaw(raw);
+      return Promise.resolve();
+    },
+    size: () => Deno.consoleSize(),
+  };
+}
+
+function tuiDeps(): TuiDeps | undefined {
+  let stdinIsTty = false;
+  let stdoutIsTty = false;
+  try {
+    stdinIsTty = Deno.stdin.isTerminal();
+    stdoutIsTty = Deno.stdout.isTerminal();
+  } catch {
+    // Fall through with the flags false: the terminal is never acquired.
+  }
+  return { stdinIsTty, stdoutIsTty, io: tuiIo() };
 }
 
 async function entry(): Promise<void> {
@@ -58,6 +98,7 @@ async function entry(): Promise<void> {
     clock: systemClock,
     random: systemRandomSource,
     signal: controller.signal,
+    tui: tuiDeps(),
   };
 
   const exitCode = await runCli(Deno.args, deps);

@@ -1,4 +1,0 @@
-# Throwaway prototype outputs and dependency installs.
-node_modules/
-out/
-*.exe

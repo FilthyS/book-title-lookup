@@ -1,8 +1,8 @@
-// Width corpus tests. "Expected" mirrors the measurements in
-// docs/research/deno-tui-candidates.md section 5; final visual confirmation
-// on Windows Terminal is part of the manual checklist.
+// Width corpus tests promoted from the issue #9 spike evidence
+// (docs/research/deno-tui-candidates.md section 5). Final visual confirmation
+// on Windows Terminal is a manual checklist item.
 
-import { assertEquals } from "jsr:@std/assert@1.0.15";
+import { assertEquals } from "@std/assert";
 import { clustersOf, measureWidth, padTo, truncateTo } from "./width.ts";
 
 interface CorpusRow {
@@ -30,7 +30,7 @@ Deno.test("width corpus matches modern terminal expectations", () => {
   }
 });
 
-Deno.test("clusters split ZWJ family into one cluster", () => {
+Deno.test("clusters split a ZWJ family into one cluster", () => {
   const clusters = clustersOf("👨‍👩‍👧‍👦x");
   assertEquals(clusters.length, 2);
   assertEquals(clusters[0].text, "👨‍👩‍👧‍👦");

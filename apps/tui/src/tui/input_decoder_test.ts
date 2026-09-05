@@ -1,7 +1,9 @@
-// Synthetic byte-stream tests for the thin renderer decoder.
+// Synthetic byte-stream tests for the thin renderer decoder (promoted from
+// the issue #9 spike evidence): text-only chunk flushing, UTF-8 and
+// escape/CSI reassembly across reads, and the control/arrow vocabulary.
 
-import { assertEquals } from "jsr:@std/assert@1.0.15";
-import { KeyDecoder, type Token } from "./decoder.ts";
+import { assertEquals } from "@std/assert";
+import { KeyDecoder, type Token } from "./input-decoder.ts";
 
 function decode(bytes: number[]): readonly Token[] {
   return new KeyDecoder().push(new Uint8Array(bytes));

@@ -1,11 +1,13 @@
-// Raw keyboard byte-stream decoder for the thin renderer.
+// Raw keyboard byte-stream decoder for the thin renderer (promoted from the
+// issue #9 spike evidence).
 //
 // Deno.stdin in raw mode delivers bytes, not keys. This decoder maps UTF-8
 // text plus the small control/CSI vocabulary a keyboard-first TUI needs into
 // tokens. It is stateful across chunk boundaries so a UTF-8 code point or an
 // escape sequence split between reads is reassembled. Chinese IME composition
 // itself is a Windows Terminal/ConPTY concern exercised manually; committed
-// composition text arrives here as ordinary UTF-8.
+// composition text arrives here as ordinary UTF-8. The decoder is pure
+// translation: it owns no bibliographic decisions (issue #13 section 6).
 
 export type Token =
   | { readonly kind: "text"; readonly value: string }
@@ -153,7 +155,7 @@ export class KeyDecoder {
       tokens.push(this.#tokenForFinal(final));
       return true;
     }
-    // Standalone ESC: cancel/back action decided by the caller.
+    // Standalone ESC: the caller decides its meaning.
     this.#pending.shift();
     tokens.push({ kind: "escape" });
     return true;

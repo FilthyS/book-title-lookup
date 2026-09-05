@@ -1,6 +1,9 @@
-// ANSI terminal lifecycle for the thin renderer. The escape strings are the
-// surface the deterministic tests assert against; a real Windows Terminal
-// session exercises their actual effect (manual checklist item 4-5).
+// ANSI terminal lifecycle for the thin renderer (promoted from the issue #9
+// spike evidence; docs/design/tui-rendering-strategy.md).
+//
+// The escape strings are the surface the deterministic tests assert against;
+// a real Windows Terminal session exercises their actual effect (manual
+// checklist). The driver owns when these sequences are written.
 
 export const ANSI = Object.freeze(
   {
@@ -13,7 +16,7 @@ export const ANSI = Object.freeze(
   } as const,
 );
 
-/** Sequence written once when the TUI starts. */
+/** Sequence written once when the TUI acquires the terminal. */
 export function enterAlternateScreen(): string {
   return ANSI.alternateScreenOn + ANSI.cursorHide;
 }
