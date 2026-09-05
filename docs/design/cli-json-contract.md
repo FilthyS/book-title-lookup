@@ -36,9 +36,8 @@ Freeze the following as the automation contract for the first release:
 - Every JSON document carries the top-level `schemaVersion` value
   `"cli-json.v1"` as its first key and serializes with deterministic key and
   array ordering (Section 7).
-- The CLI/JSON boundary identifies sources as `"openlibrary"` and `"wikidata"`
-  in bibliographic documents; cache maintenance documents preserve the cache
-  port's `provider` tokens from issue #10 (spelling map in Section 7.3).
+- The CLI/JSON boundary and cache maintenance documents both identify sources
+  as `"openlibrary"` and `"wikidata"`.
 - The full document set of Section 8 is authoritative for stdout JSON; its
   JSON Schema-style fragments become machine-validatable fixtures under
   issue #14.
@@ -379,13 +378,9 @@ Bibliographic JSON uses the application-boundary source ids from issue #6:
 | `openlibrary` | Open Library |
 | `wikidata` | Wikidata |
 
-The cache seam from issue #10 spells the same provider as `open_library`
-internally. Cache maintenance documents (Section 8.4) preserve the issue #10
-envelope and summary tokens verbatim, including `"provider": "open_library"`.
-This is a deliberate, documented difference: bibliographic documents identify
-the source that produced evidence, while cache documents identify the cache
-envelope's provider port. Scripts that correlate the two map
-`open_library` to `openlibrary`; the mapping is tested in Section 9.
+The same identifiers are used by bibliographic results, provider composition,
+raw-cache envelopes, and cache-maintenance output. One source has one identifier
+at every boundary; callers never need a spelling map.
 
 ## 8. JSON documents
 
@@ -978,11 +973,10 @@ corresponding `search`/`resolve` shapes with `command` `"titles"`.
 
 `cache list`, `cache show <digest>`, and `cache clear` are the maintenance
 operations issue #10 requires. Their JSON preserves the issue #10 port
-vocabulary verbatim, including `provider` tokens (`open_library`/`wikidata`)
-and the raw envelope field names. This is why the spelling map in Section 7.3
-exists. Statuses emitted on stdout are `ok` and `cancelled`; settings,
-permission, and unsupported-environment failures exit `2` with stderr
-diagnostics and no JSON document.
+vocabulary verbatim, including `provider` tokens (`openlibrary`/`wikidata`)
+and the raw envelope field names. Statuses emitted on stdout are `ok` and
+`cancelled`; settings, permission, and unsupported-environment failures exit
+`2` with stderr diagnostics and no JSON document.
 
 All `cache` documents carry `command: "cache"`, an `operation` field equal to
 the subcommand, and `schemaVersion` first.
@@ -998,7 +992,7 @@ the subcommand, and `schemaVersion` first.
 | `entries` | Cache entry array | Issue #10 `CacheEntrySummary` documents, sorted by `digest`. |
 
 Cache entry summary keys (verbatim from issue #10): `digest`, `provider`
-(`open_library`/`wikidata`), `url`, `status` (integer HTTP status),
+(`openlibrary`/`wikidata`), `url`, `status` (integer HTTP status),
 `freshnessClass` (`search`/`detail`/`negative`), `state` (`fresh`/`stale`),
 `fetchedAt`, `freshUntil`, `byteLength`.
 
@@ -1011,7 +1005,7 @@ Cache entry summary keys (verbatim from issue #10): `digest`, `provider`
   "entries": [
     {
       "digest": "9f2b4c1d0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c",
-      "provider": "open_library",
+      "provider": "openlibrary",
       "url": "https://openlibrary.org/search.json?q=%E7%99%BE%E5%B9%B4%E5%AD%A4%E7%8B%AC",
       "status": 200,
       "freshnessClass": "search",
@@ -1056,7 +1050,7 @@ only), and `freshness` (`freshnessClass`, `negative`, `fetchedAt`,
       "digest": "9f2b4c1d0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c"
     },
     "request": {
-      "provider": "open_library",
+      "provider": "openlibrary",
       "method": "GET",
       "url": "https://openlibrary.org/search.json?q=%E7%99%BE%E5%B9%B4%E5%AD%A4%E7%8B%AC",
       "decoderSchemaVersion": 1
@@ -1253,7 +1247,7 @@ Section 7.2.
 | C7 | Clear empty | `cache clear --json` with no entries | `ok` | `0` | Counts are `0`. |
 | C8 | Permission denied | Cache root denied | none | `2` | stderr diagnostic. |
 | C9 | Cancelled | Cancel during list | `cancelled` | `130` | |
-| C10 | Provider token | [ordering] Assert cache entries carry `open_library`/`wikidata` and bibliographic docs carry `openlibrary`/`wikidata`. | `ok` | `0` | Documented spelling map (Section 7.3). |
+| C10 | Provider token | Assert cache entries and bibliographic documents both carry `openlibrary`/`wikidata`. | `ok` | `0` | One canonical source identifier (Section 7.3). |
 
 ### 9.6 `config`
 
@@ -1333,7 +1327,7 @@ section; it never offers a translation.
 
 ```text
 $ book-title cache list
-<digest>  open_library  search  fresh  2026-09-05T12:34:56.789Z  8123 B  https://...
+<digest>  openlibrary  search  fresh  2026-09-05T12:34:56.789Z  8123 B  https://...
 
 $ book-title config show
 config root:  /home/alice/.config/book-title-lookup   (default)
@@ -1489,8 +1483,8 @@ automation surface of the MVP.
   outcome unions from #6 already carry the statuses this contract requires;
   the `titles` command's resolution-precondition statuses are implemented in
   the CLI composition root, not added to the `findTitles` module union.
-- The spelling map between cache `provider` tokens and bibliographic `source`
-  ids (Section 7.3) is enforced by contract-test row C10 so it cannot drift.
+- The canonical `openlibrary`/`wikidata` source identifiers are shared by cache
+  and bibliographic documents and enforced by contract-test row C10.
 
 ### 12.2 Risks and revisit triggers
 
@@ -1499,10 +1493,9 @@ automation surface of the MVP.
   future interactive-only caller that finds this surprising can rely on the
   JSON `status`; changing the mapping is a breaking change and requires a new
   schema-version major.
-- **Provider-token spelling difference.** Cache documents keep issue #10
-  tokens verbatim. If a later release consolidates the cache seam onto the
-  boundary spelling, it must do so with an envelope-format or
-  schema-version change and the mapping test row C10 updated together.
+- **Provider-token stability.** Cache and bibliographic documents share one
+  source-identifier vocabulary. Changing either token is an envelope and CLI
+  schema breaking change.
 - **Reference durability is upstream durability.** External References are
   durable within the contract but their resolution can change upstream;
   `resolve` and `titles` report `needs_choice`/`not_found` honestly rather
