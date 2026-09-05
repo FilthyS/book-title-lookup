@@ -63,6 +63,13 @@ preferred translation.
 This project is not endorsed by Open Library, the Internet Archive, Wikimedia,
 or Google.
 
+## Issue Tracker
+
+Tickets, status, dependencies, assignment, and discussion live on
+[GitHub Issues](https://github.com/FilthyS/book-title-lookup/issues). See the
+[issue tracker governance](./docs/agents/issue-tracker.md) for labels and the
+worker lifecycle.
+
 ## Development
 
 Deno 2.9 or newer is recommended.
