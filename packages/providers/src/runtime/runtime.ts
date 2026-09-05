@@ -35,6 +35,7 @@ import type {
   RunOutcome,
   RuntimeCachePort,
   RuntimeConfig,
+  RuntimeOperation,
   RuntimeRequestOptions,
   TransportEnvelope,
 } from "./types.ts";
@@ -104,14 +105,40 @@ export class ProviderRuntime {
     plan: RequestPlan<D>,
     options: RuntimeRequestOptions = {},
   ): Promise<RunOutcome<D>> {
-    if (options.signal?.aborted) return { kind: "cancelled" };
     const mode = options.mode ?? "online";
     const budgetMs = options.sourceBudgetMs ?? this.#config.sourceBudgetMs;
     const deadlineMs = this.#effects.now() + Math.max(1, budgetMs);
+    return await this.#executeWithin(plan, mode, options.signal, deadlineMs);
+  }
+
+  /**
+   * Bind multiple request plans to one source-operation deadline. Source
+   * workflows must use this for redirects and pagination rather than granting
+   * every plan a fresh budget.
+   */
+  beginOperation(
+    options: RuntimeRequestOptions = {},
+  ): RuntimeOperation {
+    const mode = options.mode ?? "online";
+    const budgetMs = options.sourceBudgetMs ?? this.#config.sourceBudgetMs;
+    const deadlineMs = this.#effects.now() + Math.max(1, budgetMs);
+    return {
+      execute: <D>(plan: RequestPlan<D>): Promise<RunOutcome<D>> =>
+        this.#executeWithin(plan, mode, options.signal, deadlineMs),
+    };
+  }
+
+  async #executeWithin<D>(
+    plan: RequestPlan<D>,
+    mode: "online" | "offline",
+    signal: AbortSignal | undefined,
+    deadlineMs: number,
+  ): Promise<RunOutcome<D>> {
+    if (signal?.aborted) return { kind: "cancelled" };
     const context: ExecuteContext = {
       plan: plan as RequestPlan<unknown>,
       mode,
-      signal: options.signal,
+      signal,
       deadlineMs,
       requestedUrl: plan.url,
       redirects: [],
@@ -344,9 +371,6 @@ export class ProviderRuntime {
             }),
           };
         }
-        if (context.plan.cacheClass !== undefined) {
-          await this.#writeRedirectEnvelope(context, url, response);
-        }
         const resolved = this.#followRedirect(url, response.location);
         if (!resolved.ok) {
           return {
@@ -356,6 +380,9 @@ export class ProviderRuntime {
               reason: resolved.reason ?? "redirect_not_allowed",
             }),
           };
+        }
+        if (context.plan.cacheClass !== undefined) {
+          await this.#writeRedirectEnvelope(context, url, response);
         }
         context.redirects.push({ from: url, to: resolved.to });
         if (context.signal?.aborted) return { kind: "cancelled" };
@@ -442,29 +469,40 @@ export class ProviderRuntime {
     context: ExecuteContext,
     url: string,
   ): Promise<AttemptResult> {
-    const acquired = await this.#scheduler.acquire(context.signal);
-    if (acquired === "cancelled") return { kind: "cancelled" };
-    try {
-      const spacing = await this.#scheduler.waitSpacing(context.signal);
-      if (spacing === "cancelled") return { kind: "cancelled" };
-      this.#scheduler.markRequested();
-
+    const controller = new AbortController();
+    const onCallerAbort = (): void => controller.abort();
+    context.signal?.addEventListener("abort", onCallerAbort, { once: true });
+    const remaining = context.deadlineMs - this.#effects.now();
+    // One deadline signal covers queueing, spacing, fetch, and body reads.
+    // Fake effects may resolve delay without advancing time, so only abort
+    // after confirming that the injected clock reached the deadline.
+    const deadlineTimer = this.#effects
+      .delay(Math.max(0, remaining), controller.signal)
+      .then(() => {
+        if (this.#effects.now() >= context.deadlineMs) controller.abort();
+      });
+    const stopped = (): AttemptResult | undefined => {
       if (context.signal?.aborted) return { kind: "cancelled" };
-      if (this.#effects.now() >= context.deadlineMs) return { kind: "timeout" };
-
-      const controller = new AbortController();
-      const onCallerAbort = (): void => controller.abort();
-      context.signal?.addEventListener("abort", onCallerAbort, { once: true });
-      const remaining = context.deadlineMs - this.#effects.now();
-      // The deadline only aborts when the virtual/real clock has actually
-      // reached the budget; an auto-resolving injected delay must not abort
-      // a healthy fetch.
-      const deadlineTimer = this.#effects
-        .delay(Math.max(0, remaining), controller.signal)
-        .then(() => {
-          if (this.#effects.now() >= context.deadlineMs) controller.abort();
-        });
+      if (this.#effects.now() >= context.deadlineMs) {
+        return { kind: "timeout" };
+      }
+      if (controller.signal.aborted) return { kind: "cancelled" };
+      return undefined;
+    };
+    try {
+      const acquired = await this.#scheduler.acquire(controller.signal);
+      if (acquired === "cancelled") {
+        return stopped() ?? { kind: "cancelled" };
+      }
       try {
+        const spacing = await this.#scheduler.waitSpacing(controller.signal);
+        if (spacing === "cancelled") {
+          return stopped() ?? { kind: "cancelled" };
+        }
+        this.#scheduler.markRequested();
+
+        const stoppedBeforeFetch = stopped();
+        if (stoppedBeforeFetch !== undefined) return stoppedBeforeFetch;
         const raw = await this.#config.fetch(url, {
           redirect: "manual",
           signal: controller.signal,
@@ -473,17 +511,15 @@ export class ProviderRuntime {
             Accept: "application/json, text/html;q=0.9, */*;q=0.1",
           },
         });
-        if (controller.signal.aborted) return { kind: "cancelled" };
+        const stoppedAfterFetch = stopped();
+        if (stoppedAfterFetch !== undefined) return stoppedAfterFetch;
         const response = await this.#readResponse(raw);
-        if (controller.signal.aborted) return { kind: "cancelled" };
+        const stoppedAfterRead = stopped();
+        if (stoppedAfterRead !== undefined) return stoppedAfterRead;
         return { kind: "http", response };
       } catch {
-        if (context.signal?.aborted || controller.signal.aborted) {
-          return { kind: "cancelled" };
-        }
-        if (this.#effects.now() >= context.deadlineMs) {
-          return { kind: "timeout" };
-        }
+        const stoppedAfterError = stopped();
+        if (stoppedAfterError !== undefined) return stoppedAfterError;
         const response: HttpResponse = {
           status: 0,
           contentType: null,
@@ -496,15 +532,15 @@ export class ProviderRuntime {
         // A network failure before a response is retry-eligible.
         return { kind: "http", response };
       } finally {
-        context.signal?.removeEventListener("abort", onCallerAbort);
-        // Release the deadline: aborting the attempt resolves the pending
-        // budget delay (its signal clears the real timer) so one fetch never
-        // pins the request open for the full budget.
-        if (!controller.signal.aborted) controller.abort();
-        await deadlineTimer.catch(() => undefined);
+        this.#scheduler.release();
       }
     } finally {
-      this.#scheduler.release();
+      context.signal?.removeEventListener("abort", onCallerAbort);
+      // Release the deadline: aborting the attempt resolves the pending
+      // budget delay (its signal clears the real timer) so one attempt never
+      // pins the operation open for the full budget.
+      if (!controller.signal.aborted) controller.abort();
+      await deadlineTimer.catch(() => undefined);
     }
   }
 
@@ -559,7 +595,7 @@ export class ProviderRuntime {
     if (
       envelope === undefined && context.mode === "online" &&
       context.plan.cacheClass !== undefined &&
-      isCacheableTerminal(transport.status)
+      isCacheableTerminal(transport, decoded.kind)
     ) {
       const negative = isDefinitiveAbsence(transport.status) ||
         (decoded.kind === "data" && decoded.negative === true);
@@ -651,7 +687,11 @@ export class ProviderRuntime {
   }
 
   #sleepAbortable(context: ExecuteContext, ms: number): Promise<void> {
-    return this.#effects.delay(Math.max(0, ms), context.signal);
+    const remaining = Math.max(0, context.deadlineMs - this.#effects.now());
+    return this.#effects.delay(
+      Math.min(Math.max(0, ms), remaining),
+      context.signal,
+    );
   }
 
   #failure(
@@ -690,8 +730,23 @@ export class ProviderRuntime {
   }
 }
 
-function isCacheableTerminal(status: number): boolean {
-  return (status >= 200 && status < 300) || status === 404 || status === 410;
+function isCacheableTerminal(
+  transport: TransportEnvelope,
+  decodedKind: "data" | "no_record",
+): boolean {
+  if (transport.status >= 200 && transport.status < 300) {
+    return decodedKind === "data";
+  }
+  if (!isDefinitiveAbsence(transport.status) || decodedKind !== "no_record") {
+    return false;
+  }
+  const contentType = transport.contentType?.toLowerCase() ?? "";
+  if (contentType.includes("json")) return true;
+  if (transport.contentType !== null) return false;
+  const firstNonWhitespace = transport.body.find((byte) =>
+    byte !== 0x20 && byte !== 0x09 && byte !== 0x0a && byte !== 0x0d
+  );
+  return firstNonWhitespace === 0x7b || firstNonWhitespace === 0x5b;
 }
 
 function isDefinitiveAbsence(status: number): boolean {

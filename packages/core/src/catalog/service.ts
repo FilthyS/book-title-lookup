@@ -370,7 +370,7 @@ export class CatalogService implements BookTitleCatalog {
     const editions: SourceRecord[] = [];
     const failures: SourceFailure[] = [];
     let sawFailure = false;
-    for (const canonicalRef of canonicalRefs) {
+    for (const canonicalRef of uniqueReferencesByNamespace(canonicalRefs)) {
       for (const source of this.#sources) {
         const outcome = await source.expandEditions(canonicalRef, options);
         if (outcome.status === "cancelled") return { status: "cancelled" };
@@ -479,7 +479,11 @@ export class CatalogService implements BookTitleCatalog {
     let sawFailure = false;
     const seen = new Set<string>();
 
-    for (const reference of registered.work.references) {
+    for (
+      const reference of uniqueReferencesByNamespace(
+        registered.work.references,
+      )
+    ) {
       for (const source of this.#sources) {
         const outcome = await source.expandEditions(reference, options);
         if (outcome.status === "cancelled") return { status: "cancelled" };
@@ -840,6 +844,17 @@ function sourceOfRecords(
     if (record.source === "openlibrary") return "openlibrary";
   }
   return records.find((record) => record.source === "wikidata")?.source;
+}
+
+function uniqueReferencesByNamespace(
+  references: readonly ExternalReference[],
+): readonly ExternalReference[] {
+  const seen = new Set<string>();
+  return references.filter((reference) => {
+    if (seen.has(reference.namespace)) return false;
+    seen.add(reference.namespace);
+    return true;
+  });
 }
 
 /** A candidate item built from the Work cluster of a resolved target. */

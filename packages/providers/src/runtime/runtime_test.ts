@@ -9,6 +9,7 @@ import { assertEquals } from "@std/assert";
 import { ProviderRuntime } from "./runtime.ts";
 import { DEFAULT_MAX_REDIRECTS } from "./types.ts";
 import type { RequestPlan, RuntimeConfig } from "./types.ts";
+import type { RuntimeEffects } from "./effects.ts";
 import {
   FakeEffects,
   MemoryCache,
@@ -68,6 +69,53 @@ interface Harness {
   cache: MemoryCache;
   runtime: ProviderRuntime;
   recorder: { count(url: string): number; total: number; urls: string[] };
+}
+
+class ControlledDeadlineEffects implements RuntimeEffects {
+  #nowMs = 0;
+  #sleepers: {
+    readonly at: number;
+    readonly finish: () => void;
+  }[] = [];
+
+  now(): number {
+    return this.#nowMs;
+  }
+
+  random(): number {
+    return 0;
+  }
+
+  get pendingDelays(): number {
+    return this.#sleepers.length;
+  }
+
+  delay(ms: number, signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve) => {
+      let finished = false;
+      const finish = (): void => {
+        if (finished) return;
+        finished = true;
+        signal?.removeEventListener("abort", finish);
+        resolve();
+      };
+      if (signal?.aborted) {
+        finish();
+        return;
+      }
+      signal?.addEventListener("abort", finish, { once: true });
+      this.#sleepers.push({ at: this.#nowMs + ms, finish });
+    });
+  }
+
+  advance(ms: number): void {
+    this.#nowMs += ms;
+    const due = this.#sleepers.filter((sleeper) => sleeper.at <= this.#nowMs);
+    this.#sleepers = this.#sleepers.filter((sleeper) =>
+      sleeper.at > this.#nowMs
+    );
+    for (const sleeper of due) sleeper.finish();
+  }
 }
 
 function makeHarness(
@@ -159,6 +207,28 @@ Deno.test("runtime cache identity differs by meaning-changing query parameter", 
   );
   assertEquals(b.kind, "ok");
   assertEquals(recorder.total, 2);
+});
+
+Deno.test("runtime operation shares one source budget across request plans", async () => {
+  const { runtime, effects, recorder } = makeHarness({
+    fallback: (url) => ({ status: 200, body: url }),
+  });
+  const operation = runtime.beginOperation({ sourceBudgetMs: 100 });
+
+  const first = await operation.execute(
+    planFor("https://openlibrary.org/first.json"),
+  );
+  assertEquals(first.kind, "ok");
+  effects.advance(100);
+  const second = await operation.execute(
+    planFor("https://openlibrary.org/second.json"),
+  );
+
+  assertEquals(second.kind, "source_failure");
+  if (second.kind === "source_failure") {
+    assertEquals(second.failure.code, "timeout");
+  }
+  assertEquals(recorder.total, 1);
 });
 
 Deno.test("runtime retryable 5xx retries at most twice then succeeds", async () => {
@@ -270,8 +340,8 @@ Deno.test("runtime follows an allowlisted redirect and preserves both URLs", asy
   assertEquals(recorder.total, 2);
 });
 
-Deno.test("runtime refuses an off-allowlist redirect", async () => {
-  const { runtime, recorder } = makeHarness({
+Deno.test("runtime refuses an off-allowlist redirect without caching it", async () => {
+  const { runtime, cache, recorder } = makeHarness({
     byUrl: {
       "https://openlibrary.org/a.json": {
         status: 302,
@@ -280,9 +350,10 @@ Deno.test("runtime refuses an off-allowlist redirect", async () => {
     },
   });
   const outcome = await runtime.execute(
-    planFor("https://openlibrary.org/a.json"),
+    planFor("https://openlibrary.org/a.json", "detail"),
   );
   assertEquals(outcome.kind, "source_failure");
+  assertEquals(cache.entries.size, 0, "untrusted redirects are never cached");
   assertEquals(recorder.total, 1, "never fetches the off-allowlist target");
 });
 
@@ -336,6 +407,97 @@ Deno.test("runtime pre-aborted signal returns cancelled without fetching", async
   );
   assertEquals(outcome.kind, "cancelled");
   assertEquals(recorder.total, 0);
+});
+
+Deno.test("runtime source budget aborts an in-flight fetch as timeout", async () => {
+  const effects = new ControlledDeadlineEffects();
+  let markFetchStarted: (() => void) | undefined;
+  const fetchStarted = new Promise<void>((resolve) => {
+    markFetchStarted = resolve;
+  });
+  const runtime = new ProviderRuntime(
+    effects,
+    new MemoryCache(() => effects.now()),
+    baseConfig({
+      sourceBudgetMs: 10,
+      fetch: (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          markFetchStarted?.();
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    }),
+  );
+
+  const pending = runtime.execute(
+    planFor("https://openlibrary.org/slow.json"),
+  );
+  await fetchStarted;
+  effects.advance(10);
+  const outcome = await pending;
+
+  assertEquals(outcome.kind, "source_failure");
+  if (outcome.kind === "source_failure") {
+    assertEquals(outcome.failure.code, "timeout");
+  }
+});
+
+Deno.test("runtime source budget expires while queued for a slot", async () => {
+  const effects = new ControlledDeadlineEffects();
+  const firstController = new AbortController();
+  let markFirstFetchStarted: (() => void) | undefined;
+  const firstFetchStarted = new Promise<void>((resolve) => {
+    markFirstFetchStarted = resolve;
+  });
+  const runtime = new ProviderRuntime(
+    effects,
+    new MemoryCache(() => effects.now()),
+    baseConfig({
+      maxConcurrent: 1,
+      fetch: (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          markFirstFetchStarted?.();
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    }),
+  );
+
+  const first = runtime.execute(
+    planFor("https://openlibrary.org/first.json"),
+    { signal: firstController.signal, sourceBudgetMs: 100 },
+  );
+  await firstFetchStarted;
+  let settledAtDeadline = false;
+  const second = runtime.execute(
+    planFor("https://openlibrary.org/second.json"),
+    { sourceBudgetMs: 10 },
+  ).then((outcome) => {
+    settledAtDeadline = true;
+    return outcome;
+  });
+  while (effects.pendingDelays < 2) await Promise.resolve();
+
+  effects.advance(10);
+  for (let turn = 0; turn < 10 && !settledAtDeadline; turn++) {
+    await Promise.resolve();
+  }
+  const expiredWhileQueued = settledAtDeadline;
+
+  firstController.abort();
+  await first;
+  const outcome = await second;
+  assertEquals(expiredWhileQueued, true);
+  assertEquals(outcome.kind, "source_failure");
+  if (outcome.kind === "source_failure") {
+    assertEquals(outcome.failure.code, "timeout");
+  }
 });
 
 Deno.test("runtime aborts during retry backoff as cancelled", async () => {
@@ -475,6 +637,30 @@ Deno.test("runtime negative 404 is cached and answered from cache", async () => 
   const second = await runtime.execute(plan);
   assertEquals(second.kind, "no_record");
   assertEquals(recorder.total, 1, "negative result served from cache");
+});
+
+Deno.test("runtime never caches an HTML 404 negative", async () => {
+  const url = "https://openlibrary.org/isbn/9787536692938.json";
+  const { runtime, cache, recorder } = makeHarness({
+    byUrl: {
+      [url]: {
+        status: 404,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+        body: "<!doctype html><title>Not Found</title>",
+      },
+    },
+  });
+  const plan: RequestPlan<string> = {
+    method: "GET",
+    url,
+    cacheClass: "detail",
+    decoder: () => ({ kind: "no_record" }),
+  };
+
+  assertEquals((await runtime.execute(plan)).kind, "no_record");
+  assertEquals((await runtime.execute(plan)).kind, "no_record");
+  assertEquals(cache.entries.size, 0);
+  assertEquals(recorder.total, 2, "HTML negatives must be fetched again");
 });
 
 Deno.test("runtime decode failures are not cached", async () => {

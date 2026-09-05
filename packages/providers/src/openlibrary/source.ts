@@ -77,6 +77,7 @@ export class OpenLibrarySource implements EvidenceSource {
   readonly #mode: RuntimeRequestMode;
   readonly #pageSize: number;
   readonly #maxPages: number;
+  readonly #workAliases = new Map<string, string>();
 
   constructor(
     runtime: ProviderRuntime,
@@ -99,11 +100,12 @@ export class OpenLibrarySource implements EvidenceSource {
     if (requestOptions.signal?.aborted) {
       return { status: "cancelled" };
     }
-    const plan = searchPlan(query);
-    const outcome = await this.#runtime.execute(plan, {
+    const operation = this.#runtime.beginOperation({
       mode: this.#mode,
       signal: requestOptions.signal,
     });
+    const plan = searchPlan(query);
+    const outcome = await operation.execute(plan);
     if (outcome.kind === "cancelled") return { status: "cancelled" };
     if (outcome.kind === "source_failure") {
       return { status: "failed", failure: outcome.failure };
@@ -137,6 +139,10 @@ export class OpenLibrarySource implements EvidenceSource {
     }
     const initial = initialRecordPlan(reference);
     if (initial === undefined) return { status: "no_record" };
+    const operation = this.#runtime.beginOperation({
+      mode: this.#mode,
+      signal: requestOptions.signal,
+    });
     let url = initial.url;
     const seen = new Set<string>([url]);
     for (let hop = 0; hop <= MAX_RECORD_REDIRECTS; hop++) {
@@ -146,10 +152,7 @@ export class OpenLibrarySource implements EvidenceSource {
         cacheClass: "detail",
         decoder: decodeRecordEnvelope,
       };
-      const outcome = await this.#runtime.execute(plan, {
-        mode: this.#mode,
-        signal: requestOptions.signal,
-      });
+      const outcome = await operation.execute(plan);
       if (outcome.kind === "cancelled") return { status: "cancelled" };
       if (outcome.kind === "source_failure") {
         return { status: "failed", failure: outcome.failure };
@@ -167,6 +170,11 @@ export class OpenLibrarySource implements EvidenceSource {
             }),
           };
         }
+        const requestedWork = workValueOf(data.key);
+        const canonicalWork = workValueOf(data.location);
+        if (requestedWork !== undefined && canonicalWork !== undefined) {
+          this.#workAliases.set(requestedWork, canonicalWork);
+        }
         seen.add(next);
         url = next;
         continue;
@@ -176,9 +184,10 @@ export class OpenLibrarySource implements EvidenceSource {
         fetchedAt: outcome.meta.fetchedAt,
         stale: outcome.meta.stale,
       };
+      const mapped = mapOlRecord(data as OlRecordValue, context);
       return {
         status: "ok",
-        records: [mapOlRecord(data as OlRecordValue, context)],
+        records: [withRequestedReference(mapped, reference)],
       };
     }
     return {
@@ -205,15 +214,24 @@ export class OpenLibrarySource implements EvidenceSource {
       // Not an Open Library Work identity; nothing to expand here.
       return { status: "ok", records: [], warnings: [] };
     }
+    const operation = this.#runtime.beginOperation({
+      mode: this.#mode,
+      signal: requestOptions.signal,
+    });
     const records: SourceRecord[] = [];
     const warnings: SourceWarning[] = [];
+    const canonicalWorkReference = {
+      ...workReference,
+      value: this.#canonicalWorkValue(workReference.value),
+    };
     let offset = 0;
     for (let page = 0; page < this.#maxPages; page++) {
-      const plan = editionsPagePlan(workReference, offset, this.#pageSize);
-      const outcome = await this.#runtime.execute(plan, {
-        mode: this.#mode,
-        signal: requestOptions.signal,
-      });
+      const plan = editionsPagePlan(
+        canonicalWorkReference,
+        offset,
+        this.#pageSize,
+      );
+      const outcome = await operation.execute(plan);
       if (outcome.kind === "cancelled") return { status: "cancelled" };
       if (outcome.kind === "no_record") break;
       if (outcome.kind === "source_failure") {
@@ -244,7 +262,7 @@ export class OpenLibrarySource implements EvidenceSource {
         warnings.push({
           source: "openlibrary",
           code: "partial_expansion",
-          references: [workReference],
+          references: [canonicalWorkReference],
           details: { reason: reachedCap ? "page_cap" : "pagination_bound" },
         });
         break;
@@ -252,6 +270,18 @@ export class OpenLibrarySource implements EvidenceSource {
       offset += this.#pageSize;
     }
     return { status: "ok", records, warnings };
+  }
+
+  #canonicalWorkValue(value: string): string {
+    let current = value;
+    const seen = new Set<string>();
+    while (!seen.has(current)) {
+      seen.add(current);
+      const next = this.#workAliases.get(current);
+      if (next === undefined) break;
+      current = next;
+    }
+    return current;
   }
 }
 
@@ -317,6 +347,10 @@ function canonicalUrlOfRedirect(redirect: OlRedirectValue): string | undefined {
   return `${BASE_URL}${redirect.location}.json`;
 }
 
+function workValueOf(path: string): string | undefined {
+  return path.match(/^\/works\/([^/?#]+)$/)?.[1];
+}
+
 // ---------------------------------------------------------------------------
 // Failure/warning mapping
 // ---------------------------------------------------------------------------
@@ -335,4 +369,16 @@ function failureToWarning(failure: SourceFailure): SourceWarning {
     references: failure.references,
     ...(failure.details !== undefined ? { details: failure.details } : {}),
   };
+}
+
+function withRequestedReference(
+  record: SourceRecord,
+  requested: ExternalReference,
+): SourceRecord {
+  const alreadyPresent = record.refs.some((reference) =>
+    reference.namespace === requested.namespace &&
+    reference.value === requested.value
+  );
+  if (alreadyPresent) return record;
+  return { ...record, refs: [requested, ...record.refs] };
 }

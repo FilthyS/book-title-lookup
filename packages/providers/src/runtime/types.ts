@@ -104,6 +104,14 @@ export interface RuntimeRequestOptions {
   readonly sourceBudgetMs?: number;
 }
 
+/**
+ * A source operation can execute several plans against one shared deadline,
+ * for example a merged-key redirect or paged Edition expansion.
+ */
+export interface RuntimeOperation {
+  execute<D>(plan: RequestPlan<D>): Promise<RunOutcome<D>>;
+}
+
 /** The opaque cache seam the runtime consults. */
 export interface RuntimeCachePort {
   read(key: CacheKey, options: {

@@ -59,3 +59,20 @@ Deno.test("scheduler spacing delays until the min gap elapses", async () => {
     "no additional wait when the gap is satisfied",
   );
 });
+
+Deno.test("scheduler spaces concurrent request starts", async () => {
+  const effects = new FakeEffects();
+  const scheduler = new SourceScheduler(effects, 2, 350);
+
+  const first = scheduler.waitSpacing().then((result) => {
+    scheduler.markRequested();
+    return result;
+  });
+  const second = scheduler.waitSpacing().then((result) => {
+    scheduler.markRequested();
+    return result;
+  });
+  assertEquals(await Promise.all([first, second]), ["waited", "waited"]);
+
+  assertEquals(effects.delays, [350]);
+});

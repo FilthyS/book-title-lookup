@@ -157,6 +157,12 @@ Deno.test("ol service follows a JSON /type/redirect record to the canonical work
   if (outcome.status === "resolved") {
     assert(
       outcome.work.references.some((r) =>
+        r.namespace === "openlibrary:work" && r.value === "OL45883W"
+      ),
+      "requested merged work reference preserved",
+    );
+    assert(
+      outcome.work.references.some((r) =>
         r.namespace === "openlibrary:work" && r.value === "OL45804W"
       ),
       "canonical work reference preserved",
