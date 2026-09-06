@@ -52,6 +52,8 @@ function readChunk(): Promise<Uint8Array | null> {
   );
 }
 
+const TERMINAL_SIZE_POLL_MS = 100;
+
 function tuiIo(): TerminalIo {
   const write = syncWriter(Deno.stdout);
   const locale = Intl.DateTimeFormat().resolvedOptions().locale;
@@ -64,6 +66,21 @@ function tuiIo(): TerminalIo {
       return Promise.resolve();
     },
     size: () => Deno.consoleSize(),
+    watchSize: (listener: () => void): () => void => {
+      let previous = Deno.consoleSize();
+      const timer = setInterval(() => {
+        const next = Deno.consoleSize();
+        if (
+          next.columns === previous.columns &&
+          next.rows === previous.rows
+        ) {
+          return;
+        }
+        previous = next;
+        listener();
+      }, TERMINAL_SIZE_POLL_MS);
+      return () => clearInterval(timer);
+    },
   };
 }
 

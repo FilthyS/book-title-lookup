@@ -9,14 +9,20 @@ import type {
   BookTitleCatalog,
   CandidateRef,
   RequestOptions,
+  ResolvedWorkRef,
   SearchOutcome,
 } from "../../../../packages/core/src/module.ts";
-import type { SessionState } from "../coordinator/state.ts";
+import {
+  draftWithTitle,
+  type SessionState,
+  type TitlesState,
+} from "../coordinator/state.ts";
 import { initialSession, messageForToken, runTuiSession } from "./driver.ts";
 import type { TerminalIo, TerminalSize } from "./terminal.ts";
 
 const SIZE: TerminalSize = { columns: 60, rows: 16 };
 const candidateRef = "c-1" as unknown as CandidateRef;
+const workRef = "w-1" as unknown as ResolvedWorkRef;
 
 function foundOutcome(): SearchOutcome {
   return {
@@ -30,6 +36,43 @@ function foundOutcome(): SearchOutcome {
       references: [{ namespace: "openlibrary:work", value: "OL1W" }],
     }],
     warnings: [],
+  };
+}
+
+function manyTitlesState(count: number): TitlesState {
+  const work = {
+    ref: workRef,
+    title: "One Hundred Years of Solitude",
+    authors: ["Gabriel García Márquez"],
+    contentLanguages: ["en"],
+    references: [],
+  };
+  return {
+    screen: "titles",
+    goal: { kind: "lookup" },
+    draft: draftWithTitle("Cien años de soledad"),
+    targetLanguages: [],
+    snapshot: {
+      work,
+      origin: { station: "query" },
+    },
+    payload: {
+      work,
+      targetLanguages: [],
+      status: "found",
+      groups: Array.from({ length: count }, (_, index) => ({
+        language: "en",
+        title: `Title ${index + 1}`,
+        subtitle: null,
+        level: "verified",
+        recommended: index === 0,
+        satisfiesRequest: false,
+        originalTitle: false,
+        attestations: [],
+      })),
+      warnings: [],
+    },
+    notice: null,
   };
 }
 
@@ -91,6 +134,52 @@ function deferredIo(inputEncoding?: string) {
     deliver(bytes: number[]): void {
       if (pending === null) throw new Error("no pending read");
       pending(new Uint8Array(bytes));
+    },
+  };
+}
+
+function resizableIo(initialSize: TerminalSize) {
+  let size = initialSize;
+  let pending: ((value: Uint8Array | null) => void) | null = null;
+  let resizeListener: (() => void) | null = null;
+  const writes: string[] = [];
+  const io: TerminalIo & {
+    watchSize(listener: () => void): () => void;
+  } = {
+    read(): Promise<Uint8Array | null> {
+      return new Promise((resolve) => {
+        pending = resolve;
+      });
+    },
+    write(text: string): Promise<void> {
+      writes.push(text);
+      return Promise.resolve();
+    },
+    setRawMode(): Promise<void> {
+      return Promise.resolve();
+    },
+    size(): TerminalSize {
+      return size;
+    },
+    watchSize(listener: () => void): () => void {
+      resizeListener = listener;
+      return () => {
+        resizeListener = null;
+      };
+    },
+  };
+  return {
+    io,
+    writes,
+    resize(next: TerminalSize): void {
+      size = next;
+      resizeListener?.();
+    },
+    deliver(bytes: number[]): void {
+      if (pending === null) throw new Error("no pending read");
+      const resolve = pending;
+      pending = null;
+      resolve(new Uint8Array(bytes));
     },
   };
 }
@@ -251,6 +340,50 @@ Deno.test("driver switches the production candidate layout with Tab", async () =
 
   term.deliver([0x03]);
   assertEquals(await run, 130);
+});
+
+Deno.test("driver repaints a stacked title list when the terminal shrinks", async () => {
+  const term = resizableIo({ columns: 78, rows: 40 });
+  const catalog = new ScriptedCatalog();
+  const run = runTuiSession({
+    io: term.io,
+    catalog,
+    seed: manyTitlesState(12),
+  });
+
+  await sleep();
+  const writesBeforeResize = term.writes.length;
+  term.resize({ columns: 78, rows: 29 });
+  await sleep();
+  const repaint = term.writes.at(-1) ?? "";
+  const repainted = term.writes.length > writesBeforeResize;
+
+  term.deliver([0x03]);
+  assertEquals(await run, 130);
+  assertEquals(repainted, true);
+  assertStringIncludes(repaint, "more title group");
+  assertEquals(repaint.includes("Title 9"), false);
+});
+
+Deno.test("driver does not scroll a full-height stacked title frame", async () => {
+  const term = resizableIo({ columns: 60, rows: 18 });
+  const catalog = new ScriptedCatalog();
+  const run = runTuiSession({
+    io: term.io,
+    catalog,
+    seed: manyTitlesState(12),
+  });
+
+  await sleep();
+  term.deliver(Array.from({ length: 6 }, () => [0x1b, 0x5b, 0x42]).flat());
+  await sleep();
+  const repaint = term.writes.at(-1) ?? "";
+
+  term.deliver([0x03]);
+  assertEquals(await run, 130);
+  assertStringIncludes(repaint, "earlier title group");
+  assertStringIncludes(repaint, "more title group");
+  assertEquals(repaint.endsWith("\r\n"), false);
 });
 
 Deno.test("driver handles a standalone Esc without waiting for another key", async () => {

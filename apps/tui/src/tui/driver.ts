@@ -166,6 +166,7 @@ class InteractiveSession {
   #signal: AbortSignal | undefined;
   #interruptQueued = false;
   #interruptWaiter: (() => void) | null = null;
+  #stopWatchingSize: (() => void) | null = null;
 
   #exitCode: number | undefined;
   #groupSelection = 0;
@@ -188,6 +189,8 @@ class InteractiveSession {
       // acquire is inside the guarded scope so a partial acquire is still
       // restored by release() in the finally block (issue #13 section 13.3).
       await this.#terminal.acquire();
+      this.#stopWatchingSize = this.#io.watchSize?.(() => this.#paint()) ??
+        null;
       this.#paint();
       while (this.#exitCode === undefined) {
         const event = await this.#nextEvent();
@@ -205,6 +208,8 @@ class InteractiveSession {
       }
       return this.#exitCode ?? 0;
     } finally {
+      this.#stopWatchingSize?.();
+      this.#stopWatchingSize = null;
       this.#abortAll();
       await this.#terminal.release();
     }
@@ -497,7 +502,7 @@ class InteractiveSession {
       ) + ANSI.cursorShow
       : "";
     void this.#io.write(
-      ANSI.cursorHide + ANSI.clearScreen + frame + "\r\n" + cursor,
+      ANSI.cursorHide + ANSI.clearScreen + frame + cursor,
     );
   }
 }

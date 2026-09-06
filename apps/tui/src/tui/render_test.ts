@@ -364,7 +364,47 @@ Deno.test("stacked title list scrolls within the terminal height", () => {
     { groups: 10, layout: "stacked" },
   );
   assertEquals(lines.some((line) => line.startsWith("┌ > 11 ·")), true);
+  const moreIndex = lines.findIndex((line) =>
+    line.includes("more title group")
+  );
+  assertEquals(moreIndex >= 0, true);
+  assertEquals(lines[moreIndex - 1], `└${"─".repeat(58)}┘`);
   assertEquals(lines.length <= SIZE_60x16.rows, true);
+});
+
+Deno.test("stacked title list closes the last box before its overflow hint", () => {
+  for (const columns of [60, 78, 100]) {
+    for (let rows = 16; rows <= 40; rows++) {
+      const size: TerminalSize = { columns, rows };
+      const lines = renderFrame(
+        manyTitlesState(12),
+        size,
+        { groups: 0, layout: "stacked" },
+      );
+      const topBorders = lines.filter((line) => line.startsWith("┌")).length;
+      const bottomBorder = `└${"─".repeat(columns - 2)}┘`;
+      const bottomBorders = lines.filter((line) =>
+        line === bottomBorder
+      ).length;
+      assertEquals(
+        bottomBorders,
+        topBorders,
+        `all boxes must close at ${columns}x${rows}`,
+      );
+
+      const visibleTitles = lines.filter((line) =>
+        /Title \d+/.test(line)
+      ).length;
+      if (visibleTitles < 12) {
+        assertEquals(
+          lines.some((line) => line.includes("more title group")),
+          true,
+          `overflow hint must be visible at ${columns}x${rows}`,
+        );
+      }
+      assertEquals(lines.length <= rows, true);
+    }
+  }
 });
 
 Deno.test("group_detail frame expands the selected group", () => {

@@ -24,8 +24,13 @@ export interface TerminalIo {
   readonly write: (text: string) => Promise<void>;
   /** Toggle raw input mode (raw disables echo; false restores line mode). */
   readonly setRawMode: (raw: boolean) => Promise<void>;
-  /** Current terminal size, read on every repaint so resize is observed. */
+  /** Current terminal size, read on every repaint. */
   readonly size: () => TerminalSize;
+  /**
+   * Subscribe to terminal-size changes. Implementations return an unsubscribe
+   * function; omitted implementations still resize on the next ordinary paint.
+   */
+  readonly watchSize?: (listener: () => void) => () => void;
 }
 
 /**
