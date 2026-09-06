@@ -186,14 +186,15 @@ function manyTitlesState(count: number): SessionState {
   };
 }
 
-Deno.test("query frame renders input without a separate cursor line", () => {
+Deno.test("query frame distinguishes the title and frames the input", () => {
   const state = typeTitle(querySeed(), "百年孤独");
   const lines = renderFrame(state, SIZE_60x16);
-  assertEquals(lines, [
-    "Book Title Lookup",
-    "Search: 百年孤独",
-    "Enter=search  Esc=quit  Ctrl+C=interrupt",
-  ]);
+  assertEquals(lines[0], "B O O K   T I T L E   L O O K U P");
+  assertEquals(lines[1].startsWith("┌ TITLE INPUT "), true);
+  assertEquals(lines[2].startsWith("│ 百年孤独"), true);
+  assertEquals(lines[2].endsWith("│"), true);
+  assertEquals(lines[3], `└${"─".repeat(58)}┘`);
+  assertEquals(lines[4], "Enter=search  Esc=quit  Ctrl+C=interrupt");
 });
 
 Deno.test("cursor column accounts for double-width Chinese", () => {
@@ -202,8 +203,8 @@ Deno.test("cursor column accounts for double-width Chinese", () => {
     type: "moveCursor",
     step: 1,
   }]);
-  // "Search: " is 8 columns; 小 contributes 2 => caret at column 10.
-  assertEquals(cursorColumn(moved), 10);
+  // "│ " is 2 columns; 小 contributes 2 => zero-based caret column 4.
+  assertEquals(cursorColumn(moved), 4);
 });
 
 Deno.test("invalid submit shows the input.invalid notice", () => {
@@ -229,7 +230,7 @@ Deno.test("searching frame shows progress and no caret", () => {
 
 Deno.test("candidates frame renders an exact snapshot", () => {
   const lines = renderFrame(candidatesState(), SIZE_60x16);
-  assertEquals(lines[0], "Book Title Lookup");
+  assertEquals(lines[0], "B O O K   T I T L E   L O O K U P");
   assertEquals(lines[1], "Query: 百年孤独");
   assertEquals(lines[2], "Work candidates — stacked layout");
   assertEquals(lines[3].startsWith("┌ > 1 "), true);

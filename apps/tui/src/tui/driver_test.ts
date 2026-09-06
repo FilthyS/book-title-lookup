@@ -159,8 +159,8 @@ Deno.test("driver places the native cursor on the query input row", async () => 
   await sleep();
 
   const repaint = term.writes.at(-1) ?? "";
-  assertStringIncludes(repaint, "Search: 1984");
-  assertEquals(repaint.endsWith("\x1b[2;13H\x1b[?25h"), true);
+  assertStringIncludes(repaint, "│ 1984");
+  assertEquals(repaint.endsWith("\x1b[3;7H\x1b[?25h"), true);
 
   term.deliver([0x1b, 0x61]);
   assertEquals(await run, 0);
@@ -176,8 +176,8 @@ Deno.test("driver accepts CP936 Chinese input on Windows terminals", async () =>
   await sleep();
 
   const repaint = term.writes.at(-1) ?? "";
-  assertStringIncludes(repaint, "Search: 中");
-  assertEquals(repaint.endsWith("\x1b[2;11H\x1b[?25h"), true);
+  assertStringIncludes(repaint, "│ 中");
+  assertEquals(repaint.endsWith("\x1b[3;5H\x1b[?25h"), true);
 
   term.deliver([0x1b, 0x61]);
   assertEquals(await run, 0);
@@ -197,9 +197,9 @@ Deno.test("driver starts a fresh query from search results with N", async () => 
   term.deliver([0x6e]); // N=new search
   await sleep();
   const repaint = term.writes.at(-1) ?? "";
-  assertStringIncludes(repaint, "Search: ");
+  assertStringIncludes(repaint, "┌ TITLE INPUT ");
   assertEquals(repaint.includes("old query"), false);
-  assertEquals(repaint.endsWith("\x1b[2;9H\x1b[?25h"), true);
+  assertEquals(repaint.endsWith("\x1b[3;3H\x1b[?25h"), true);
 
   term.deliver([0x1b, 0x61]);
   assertEquals(await run, 0);
@@ -224,7 +224,7 @@ Deno.test("driver runs a search to candidates and restores on interrupt", async 
 
   assertEquals(code, 130);
   const output = allWrites(term.writes);
-  assertStringIncludes(output, "Search: 百年孤独");
+  assertStringIncludes(output, "│ 百年孤独");
   assertStringIncludes(output, "Work candidates — stacked layout");
   assertStringIncludes(output, "小王子");
   // Acquire then restore raw mode.
@@ -270,7 +270,7 @@ Deno.test("driver handles a standalone Esc without waiting for another key", asy
 
   term.deliver([0x03]);
   assertEquals(await run, 130);
-  assertStringIncludes(repaintAfterEsc, "Search: 百年孤独");
+  assertStringIncludes(repaintAfterEsc, "│ 百年孤独");
   assertEquals(repaintAfterEsc.includes("Work candidates"), false);
 });
 
@@ -368,7 +368,7 @@ Deno.test("driver aborts an in-flight search on back and drops the late outcome"
   term.deliver([0x1b, 0x62]);
   await sleep();
   assertEquals(call.signal.aborted, true, "in-flight request was aborted");
-  assertStringIncludes(allWrites(term.writes), "Search: 活着");
+  assertStringIncludes(allWrites(term.writes), "│ 活着");
   assertStringIncludes(allWrites(term.writes), "Enter=search  Esc=quit");
 
   // Deliver the late cancelled outcome; the reducer drops it (state unchanged).

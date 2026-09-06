@@ -134,7 +134,7 @@ Deno.test("X6 no-command TTY without --json starts the TUI and exits 0 on quit",
   assertEquals(built.stdout.text(), "", "no CLI usage on stdout in TUI mode");
   assertEquals(term.raws, [true, false], "terminal was acquired and restored");
   const output = term.writes.join("");
-  assertEquals(output.includes("Book Title Lookup"), true);
+  assertEquals(output.includes("B O O K   T I T L E   L O O K U P"), true);
 });
 
 Deno.test("no-command TUI exits 130 and restores on an injected OS signal abort", async () => {

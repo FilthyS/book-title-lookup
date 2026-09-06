@@ -25,7 +25,9 @@ import type { TerminalSize } from "./terminal.ts";
 export const MIN_COLUMNS = 60;
 export const MIN_ROWS = 16;
 
-const TITLE = "Book Title Lookup";
+const TITLE = "B O O K   T I T L E   L O O K U P";
+const PLAIN_TITLE = "Book Title Lookup";
+export const QUERY_CURSOR_ROW = 3;
 
 /** Driver-local selection used to place markers on list stations. */
 export type UiLayout = "stacked" | "compact";
@@ -48,9 +50,9 @@ function titleText(state: SessionState): string {
   return state.draft.fields.title.text;
 }
 
-/** The display prefix "Search: " plus the width of title text before cursor. */
+/** The input box prefix "│ " plus the width of title text before the cursor. */
 export function cursorColumn(state: SessionState): number {
-  const prefix = measureWidth("Search: ");
+  const prefix = measureWidth("│ ");
   const text = titleText(state);
   const before = text === ""
     ? 0
@@ -195,7 +197,7 @@ export function renderFrame(
 ): readonly string[] {
   if (isTooSmall(size)) {
     const lines = [
-      TITLE,
+      PLAIN_TITLE,
       `Terminal too small: need at least ${MIN_COLUMNS}x${MIN_ROWS}.`,
       `Current size: ${size.columns}x${size.rows}.`,
       "Resize the window to continue.",
@@ -204,7 +206,7 @@ export function renderFrame(
   }
   switch (state.screen) {
     case "query":
-      return renderQuery(state);
+      return renderQuery(state, size);
     case "searching":
       return renderSearching(state);
     case "candidates":
@@ -235,11 +237,16 @@ function queryFilterLine(state: SessionState): readonly string[] {
   return lines;
 }
 
-function renderQuery(state: QueryState): readonly string[] {
+function renderQuery(
+  state: QueryState,
+  size: TerminalSize,
+): readonly string[] {
   const text = titleText(state);
   const lines: string[] = [
     TITLE,
-    `Search: ${text}`,
+    boxTop("TITLE INPUT", size.columns),
+    boxRow(text, size.columns),
+    boxBottom(size.columns),
     ...queryFilterLine(state),
     "Enter=search  Esc=quit  Ctrl+C=interrupt",
   ];

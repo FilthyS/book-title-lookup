@@ -23,6 +23,7 @@ import {
   cursorColumn,
   initialUiSelection,
   isTooSmall,
+  QUERY_CURSOR_ROW,
   renderFrame,
   type UiLayout,
   type UiSelection,
@@ -490,7 +491,10 @@ class InteractiveSession {
       .map((line) => padTo(line, size.columns))
       .join("\r\n");
     const cursor = this.#state.screen === "query" && !isTooSmall(size)
-      ? moveCursorTo(2, cursorColumn(this.#state) + 1) + ANSI.cursorShow
+      ? moveCursorTo(
+        QUERY_CURSOR_ROW,
+        Math.min(size.columns - 1, cursorColumn(this.#state) + 1),
+      ) + ANSI.cursorShow
       : "";
     void this.#io.write(
       ANSI.cursorHide + ANSI.clearScreen + frame + "\r\n" + cursor,
