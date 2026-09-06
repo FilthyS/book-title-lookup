@@ -22,7 +22,7 @@ import { detectPlatformKind } from "../../../packages/providers/src/platform/pla
 import { systemClock } from "../../../packages/providers/src/cache/clock.ts";
 import { systemRandomSource } from "../../../packages/providers/src/cache/random.ts";
 import type { TerminalIo } from "./tui/terminal.ts";
-import { defaultTerminalInputEncoding } from "./tui/input-decoder.ts";
+import { DEFAULT_TERMINAL_INPUT_ENCODING } from "./tui/input-decoder.ts";
 
 const encoder = new TextEncoder();
 
@@ -45,7 +45,6 @@ export function streamWriter(stream: {
 function tuiIo(): TerminalIo {
   const write = streamWriter(process.stdout);
   const input = process.stdin[Symbol.asyncIterator]();
-  const locale = Intl.DateTimeFormat().resolvedOptions().locale;
   return {
     read: async (): Promise<Uint8Array | null> => {
       const next = await input.next();
@@ -54,10 +53,7 @@ function tuiIo(): TerminalIo {
         ? encoder.encode(next.value)
         : new Uint8Array(next.value);
     },
-    inputEncoding: defaultTerminalInputEncoding(
-      process.platform === "win32" ? "windows" : process.platform,
-      locale,
-    ),
+    inputEncoding: DEFAULT_TERMINAL_INPUT_ENCODING,
     write: (text: string) => write.write(text),
     setRawMode: (raw: boolean): Promise<void> => {
       if (typeof process.stdin.setRawMode !== "function") {

@@ -34,28 +34,11 @@ const ESC = 0x1b;
 const DEL = 0x7f;
 
 /**
- * Node reads a Windows console through its active legacy input code page.
- * Simplified Chinese Windows installations default to CP936; GB18030 is its
- * compatible Encoding Standard decoder. Unix terminal streams remain UTF-8.
+ * Node exposes terminal input as UTF-8 on every supported platform. Selecting
+ * a legacy Windows code page from the locale would reinterpret UTF-8 bytes and
+ * corrupt committed CJK input.
  */
-export function defaultTerminalInputEncoding(
-  os: string,
-  locale: string,
-): string {
-  if (os !== "windows") {
-    return "utf-8";
-  }
-  const normalized = locale.toLowerCase();
-  if (
-    normalized === "zh" ||
-    normalized.startsWith("zh-cn") ||
-    normalized.startsWith("zh-sg") ||
-    normalized.startsWith("zh-hans")
-  ) {
-    return "gb18030";
-  }
-  return "utf-8";
-}
+export const DEFAULT_TERMINAL_INPUT_ENCODING = "utf-8";
 
 function utf8Length(lead: number): number {
   if (lead < 0x80) {

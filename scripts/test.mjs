@@ -18,6 +18,7 @@ async function testFiles(root) {
 const files = [
   ...(await testFiles("apps")),
   ...(await testFiles("packages")),
+  ...(await testFiles("testing")),
 ].sort();
 
 const result = spawnSync(

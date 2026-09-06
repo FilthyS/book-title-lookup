@@ -4,7 +4,7 @@
 
 import { assertEquals } from "@std/assert";
 import {
-  defaultTerminalInputEncoding,
+  DEFAULT_TERMINAL_INPUT_ENCODING,
   KeyDecoder,
   type Token,
 } from "./input-decoder.ts";
@@ -57,9 +57,12 @@ Deno.test("decoder transcodes CP936 Chinese input across chunks", () => {
   ]);
 });
 
-Deno.test("Windows Simplified Chinese terminals default to CP936-compatible decoding", () => {
-  assertEquals(defaultTerminalInputEncoding("windows", "zh-CN"), "gb18030");
-  assertEquals(defaultTerminalInputEncoding("linux", "zh-CN"), "utf-8");
+Deno.test("Node terminal defaults preserve UTF-8 Chinese input on Windows", () => {
+  const decoder = new KeyDecoder(DEFAULT_TERMINAL_INPUT_ENCODING);
+  assertEquals(decoder.push(new TextEncoder().encode("中文")), [
+    { kind: "text", value: "中文" },
+  ]);
+  assertEquals(DEFAULT_TERMINAL_INPUT_ENCODING, "utf-8");
 });
 
 Deno.test("invalid UTF-8 lead byte does not block later text", () => {
