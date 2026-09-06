@@ -146,13 +146,12 @@ function groupDetailState(): SessionState {
   return drive(titlesState(), [{ type: "selectGroup", index: 0 }]);
 }
 
-Deno.test("query frame renders an exact snapshot with a caret", () => {
+Deno.test("query frame renders input without a separate cursor line", () => {
   const state = typeTitle(querySeed(), "百年孤独");
   const lines = renderFrame(state, SIZE_60x16);
   assertEquals(lines, [
     "Book Title Lookup",
     "Search: 百年孤独",
-    `${" ".repeat(16)}|`,
     "Enter=search  Esc=quit  Ctrl+C=interrupt",
   ]);
 });
@@ -241,6 +240,17 @@ Deno.test("below-minimum size renders the resize message", () => {
     "Terminal too small: need at least 60x16.",
     "Current size: 40x10.",
     "Resize the window to continue.",
+  ]);
+});
+
+Deno.test("below-minimum frame fits within a tiny terminal width", () => {
+  const state = typeTitle(querySeed(), "百年孤独");
+  const lines = renderFrame(state, { columns: 10, rows: 5 });
+  assertEquals(lines, [
+    "Book Title",
+    "Terminal t",
+    "Current si",
+    "Resize the",
   ]);
 });
 

@@ -30,6 +30,7 @@ import {
   systemRandomSource,
 } from "../../../packages/providers/src/cache/random.ts";
 import type { TerminalIo } from "./tui/terminal.ts";
+import { defaultTerminalInputEncoding } from "./tui/input-decoder.ts";
 
 const encoder = new TextEncoder();
 
@@ -53,8 +54,10 @@ function readChunk(): Promise<Uint8Array | null> {
 
 function tuiIo(): TerminalIo {
   const write = syncWriter(Deno.stdout);
+  const locale = Intl.DateTimeFormat().resolvedOptions().locale;
   return {
     read: readChunk,
+    inputEncoding: defaultTerminalInputEncoding(Deno.build.os, locale),
     write: (text: string) => write.write(text),
     setRawMode: (raw: boolean): Promise<void> => {
       Deno.stdin.setRaw(raw);

@@ -33,29 +33,70 @@ const BS = 0x08;
 const ESC = 0x1b;
 const DEL = 0x7f;
 
+/**
+ * Deno reads a Windows console through its active legacy input code page.
+ * Simplified Chinese Windows installations default to CP936; GB18030 is its
+ * compatible Encoding Standard decoder. Unix terminal streams remain UTF-8.
+ */
+export function defaultTerminalInputEncoding(
+  os: string,
+  locale: string,
+): string {
+  if (os !== "windows") {
+    return "utf-8";
+  }
+  const normalized = locale.toLowerCase();
+  if (
+    normalized === "zh" ||
+    normalized.startsWith("zh-cn") ||
+    normalized.startsWith("zh-sg") ||
+    normalized.startsWith("zh-hans")
+  ) {
+    return "gb18030";
+  }
+  return "utf-8";
+}
+
 function utf8Length(lead: number): number {
   if (lead < 0x80) {
     return 1;
   }
-  if (lead >= 0xc0 && lead <= 0xdf) {
+  if (lead >= 0xc2 && lead <= 0xdf) {
     return 2;
   }
   if (lead >= 0xe0 && lead <= 0xef) {
     return 3;
   }
-  if (lead >= 0xf0 && lead <= 0xf7) {
+  if (lead >= 0xf0 && lead <= 0xf4) {
     return 4;
   }
   return 0;
+}
+
+function isContinuation(byte: number): boolean {
+  return byte >= 0x80 && byte <= 0xbf;
 }
 
 export class KeyDecoder {
   #pending: number[] = [];
   #textRun: string[] = [];
   #decoder = new TextDecoder();
+  #sourceDecoder: TextDecoder | undefined;
+  #encoder = new TextEncoder();
+
+  constructor(sourceEncoding = "utf-8") {
+    const decoder = new TextDecoder(sourceEncoding);
+    if (decoder.encoding !== "utf-8") {
+      this.#sourceDecoder = decoder;
+    }
+  }
 
   /** Decode one read chunk into zero or more tokens. */
   push(chunk: Uint8Array): readonly Token[] {
+    if (this.#sourceDecoder !== undefined) {
+      const text = this.#sourceDecoder.decode(chunk, { stream: true });
+      chunk = this.#encoder.encode(text);
+    }
     this.#pending.push(...chunk);
     const tokens: Token[] = [];
     while (this.#pending.length > 0) {
@@ -100,8 +141,28 @@ export class KeyDecoder {
         continue;
       }
       const length = utf8Length(first);
-      if (length === 0 || this.#pending.length < length) {
-        // Incomplete code point (or invalid lead); wait for the next chunk.
+      if (length === 0) {
+        this.#flushText(tokens);
+        this.#pending.shift();
+        tokens.push({ kind: "unknown" });
+        continue;
+      }
+      const available = Math.min(length, this.#pending.length);
+      let malformed = false;
+      for (let index = 1; index < available; index += 1) {
+        if (!isContinuation(this.#pending[index])) {
+          malformed = true;
+          break;
+        }
+      }
+      if (malformed) {
+        this.#flushText(tokens);
+        this.#pending.shift();
+        tokens.push({ kind: "unknown" });
+        continue;
+      }
+      if (this.#pending.length < length) {
+        // Incomplete code point; wait for the next chunk.
         break;
       }
       const bytes = this.#pending.splice(0, length);

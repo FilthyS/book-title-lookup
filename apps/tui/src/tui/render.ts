@@ -18,7 +18,7 @@ import type {
   TitlesLoadingState,
   TitlesState,
 } from "../coordinator/state.ts";
-import { clustersOf, measureWidth } from "./width.ts";
+import { clustersOf, measureWidth, truncateTo } from "./width.ts";
 import type { TerminalSize } from "./terminal.ts";
 
 /** Minimum supported terminal size from docs/product-spec.md. */
@@ -114,12 +114,13 @@ export function renderFrame(
   selection: UiSelection = initialUiSelection,
 ): readonly string[] {
   if (isTooSmall(_size)) {
-    return [
+    const lines = [
       TITLE,
       `Terminal too small: need at least ${MIN_COLUMNS}x${MIN_ROWS}.`,
       `Current size: ${_size.columns}x${_size.rows}.`,
       "Resize the window to continue.",
     ];
+    return lines.map((line) => truncateTo(line, Math.max(0, _size.columns)));
   }
   switch (state.screen) {
     case "query":
@@ -156,11 +157,9 @@ function queryFilterLine(state: SessionState): readonly string[] {
 
 function renderQuery(state: QueryState): readonly string[] {
   const text = titleText(state);
-  const caret = `${" ".repeat(cursorColumn(state))}|`;
   const lines: string[] = [
     TITLE,
     `Search: ${text}`,
-    caret,
     ...queryFilterLine(state),
     "Enter=search  Esc=quit  Ctrl+C=interrupt",
   ];

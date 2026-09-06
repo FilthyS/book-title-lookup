@@ -18,6 +18,8 @@ export interface TerminalSize {
 export interface TerminalIo {
   /** Read the next raw input chunk. Resolves null at EOF. */
   readonly read: () => Promise<Uint8Array | null>;
+  /** Encoding of text bytes delivered by the host terminal. */
+  readonly inputEncoding?: string;
   /** Write a frame or control sequence to the terminal stdout. */
   readonly write: (text: string) => Promise<void>;
   /** Toggle raw input mode (raw disables echo; false restores line mode). */

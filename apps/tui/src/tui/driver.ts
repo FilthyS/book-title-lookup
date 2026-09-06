@@ -18,8 +18,13 @@
 import { KeyDecoder, type Token } from "./input-decoder.ts";
 import type { TerminalIo } from "./terminal.ts";
 import { TerminalController } from "./terminal.ts";
-import { ANSI } from "./ansi.ts";
-import { renderFrame, type UiSelection } from "./render.ts";
+import { ANSI, moveCursorTo } from "./ansi.ts";
+import {
+  cursorColumn,
+  isTooSmall,
+  renderFrame,
+  type UiSelection,
+} from "./render.ts";
 import { padTo } from "./width.ts";
 import { update } from "../coordinator/reducer.ts";
 import type { Message } from "../coordinator/messages.ts";
@@ -126,7 +131,7 @@ export function messageForToken(
 
 class InteractiveSession {
   #state: SessionState;
-  #decoder = new KeyDecoder();
+  #decoder: KeyDecoder;
   #io: TerminalIo;
   #catalog: BookTitleCatalog;
   #ids: RequestIdSource;
@@ -153,6 +158,7 @@ class InteractiveSession {
 
   constructor(options: RunTuiOptions) {
     this.#io = options.io;
+    this.#decoder = new KeyDecoder(options.io.inputEncoding);
     this.#catalog = options.catalog;
     this.#ids = options.ids ?? fixedRequestIds();
     this.#terminal = new TerminalController(this.#io);
@@ -423,7 +429,12 @@ class InteractiveSession {
     const frame = renderFrame(this.#state, size, selection)
       .map((line) => padTo(line, size.columns))
       .join("\r\n");
-    void this.#io.write(ANSI.clearScreen + frame + "\r\n");
+    const cursor = this.#state.screen === "query" && !isTooSmall(size)
+      ? moveCursorTo(2, cursorColumn(this.#state) + 1) + ANSI.cursorShow
+      : "";
+    void this.#io.write(
+      ANSI.cursorHide + ANSI.clearScreen + frame + "\r\n" + cursor,
+    );
   }
 }
 
