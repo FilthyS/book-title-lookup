@@ -1,5 +1,9 @@
 # Book Title Lookup
 
+[![Test](https://img.shields.io/github/actions/workflow/status/FilthyS/book-title-lookup/build.yml?branch=main&label=test)](https://github.com/FilthyS/book-title-lookup/actions/workflows/build.yml)
+[![Build](https://img.shields.io/github/actions/workflow/status/FilthyS/book-title-lookup/build.yml?branch=main&label=build)](https://github.com/FilthyS/book-title-lookup/actions/workflows/build.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
 Find evidence-backed titles of the same written work across languages.
 
 Search for a title, confirm the book you mean, and find titles used by published
