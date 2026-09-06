@@ -140,6 +140,9 @@ Deno.test("driver messageForToken maps keys to coordinator messages", () => {
   assertEquals(messageForToken(candidates, { kind: "enter" }), {
     type: "confirmCandidate",
   });
+  assertEquals(messageForToken(candidates, { kind: "text", value: "n" }), {
+    type: "newSearch",
+  });
 });
 
 function allWrites(writes: readonly string[]): string {
@@ -175,6 +178,28 @@ Deno.test("driver accepts CP936 Chinese input on Windows terminals", async () =>
   const repaint = term.writes.at(-1) ?? "";
   assertStringIncludes(repaint, "Search: 中");
   assertEquals(repaint.endsWith("\x1b[2;11H\x1b[?25h"), true);
+
+  term.deliver([0x1b, 0x61]);
+  assertEquals(await run, 0);
+});
+
+Deno.test("driver starts a fresh query from search results with N", async () => {
+  const term = deferredIo();
+  const catalog = new ScriptedCatalog();
+  const run = runTuiSession({ io: term.io, catalog });
+
+  await sleep();
+  term.deliver([...encoder.encode("old query"), 0x0d]);
+  await sleep();
+  catalog.pendingSearches[0].resolve(foundOutcome());
+  await sleep();
+
+  term.deliver([0x6e]); // N=new search
+  await sleep();
+  const repaint = term.writes.at(-1) ?? "";
+  assertStringIncludes(repaint, "Search: ");
+  assertEquals(repaint.includes("old query"), false);
+  assertEquals(repaint.endsWith("\x1b[2;9H\x1b[?25h"), true);
 
   term.deliver([0x1b, 0x61]);
   assertEquals(await run, 0);

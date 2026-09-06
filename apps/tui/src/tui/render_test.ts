@@ -198,7 +198,9 @@ Deno.test("candidates frame renders an exact snapshot", () => {
     "  2. One Hundred Years of Solitude — Gabriel García Márquez",
   );
   assertEquals(
-    lines.includes("Up/Down=select  Enter=confirm  Esc=back  Ctrl+C=interrupt"),
+    lines.includes(
+      "Up/Down=select Enter=confirm N=new search Esc=back ^C=quit",
+    ),
     true,
   );
 });
@@ -213,7 +215,7 @@ Deno.test("resolved frame shows the work under goal lookup with a titles hint", 
   const lines = renderFrame(resolved, SIZE_60x16);
   assertEquals(lines[1], "Resolved: One Hundred Years of Solitude");
   assertEquals(
-    lines.includes("Enter=titles  Esc=back  Ctrl+C=interrupt"),
+    lines.includes("Enter=titles  N=new search  Esc=back  Ctrl+C=interrupt"),
     true,
   );
 });
@@ -224,12 +226,20 @@ Deno.test("titles frame lists groups with the selection marker", () => {
   const lines = renderFrame(state, SIZE_60x16, selection);
   assertEquals(lines[1], "Title groups for 'One Hundred Years of Solitude':");
   assertEquals(lines[2].startsWith("> 1. Cien años de soledad"), true);
+  assertEquals(
+    lines.includes("Up/Down=select Enter=detail N=new search Esc=back ^C=quit"),
+    true,
+  );
 });
 
 Deno.test("group_detail frame expands the selected group", () => {
   const lines = renderFrame(groupDetailState(), SIZE_60x16);
   assertEquals(lines[1], "Group: Cien años de soledad");
   assertEquals(lines.some((line) => line.includes("edition title")), true);
+  assertEquals(
+    lines.includes("N=new search  Esc=back  Ctrl+C=interrupt"),
+    true,
+  );
 });
 
 Deno.test("below-minimum size renders the resize message", () => {

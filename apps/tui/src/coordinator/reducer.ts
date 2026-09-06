@@ -339,6 +339,25 @@ export function update(
       return { next: { ...state, draft }, effects: [] };
     }
 
+    case "newSearch": {
+      if (
+        state.screen !== "candidates" && state.screen !== "resolved" &&
+        state.screen !== "titles" && state.screen !== "group_detail"
+      ) {
+        return noChange(state);
+      }
+      return {
+        next: {
+          screen: "query",
+          goal: { kind: "lookup" },
+          draft: emptyQueryDraft(),
+          targetLanguages: [],
+          notice: null,
+        },
+        effects: [],
+      };
+    }
+
     case "submitSearch": {
       if (state.screen !== "query") return noChange(state);
       const built = buildQueryFromDraft(state.draft);

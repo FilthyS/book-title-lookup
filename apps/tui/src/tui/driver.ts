@@ -123,6 +123,13 @@ export function messageForToken(
     case "delete":
       return { type: "delete" };
     case "text":
+      if (
+        (token.value === "n" || token.value === "N") &&
+        (state.screen === "candidates" || state.screen === "resolved" ||
+          state.screen === "titles" || state.screen === "group_detail")
+      ) {
+        return { type: "newSearch" };
+      }
       return { type: "text", value: token.value };
     default:
       return null; // tab / unknown ignored
@@ -142,6 +149,9 @@ class InteractiveSession {
   #tokens: Token[] = [];
   // A single outstanding read; never lost across race iterations.
   #readInFlight: Promise<Uint8Array | null> | null = null;
+  // A single consumer for that read; losing an outcome race must not create a
+  // second decoder invocation for the same eventual input chunk.
+  #tokenPullInFlight: Promise<"token" | "eof"> | null = null;
   #inputEnded = false;
 
   // Request outcomes queued by running requests, with a one-slot waiter.
@@ -216,8 +226,23 @@ class InteractiveSession {
       ]);
     }
     const outcomeP = this.#waitForOutcome().then(() => "outcome" as const);
-    const tokenP = this.#pullToken().then((kind) => kind);
+    const tokenP = this.#waitForToken();
     return Promise.race([outcomeP, tokenP, interruptP]);
+  }
+
+  #waitForToken(): Promise<"token" | "eof"> {
+    if (this.#tokenPullInFlight !== null) return this.#tokenPullInFlight;
+    const pull = this.#pullToken();
+    this.#tokenPullInFlight = pull;
+    pull.then(
+      () => {
+        if (this.#tokenPullInFlight === pull) this.#tokenPullInFlight = null;
+      },
+      () => {
+        if (this.#tokenPullInFlight === pull) this.#tokenPullInFlight = null;
+      },
+    );
+    return pull;
   }
 
   /** Pull reads until a token is decoded or input ends. */

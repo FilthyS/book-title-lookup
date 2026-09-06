@@ -24,6 +24,7 @@ export type Message =
   | { readonly type: "home" }
   | { readonly type: "end" }
   | { readonly type: "clearField" }
+  | { readonly type: "newSearch" }
   | { readonly type: "submitSearch" }
   | { readonly type: "cancelRequest" }
   | { readonly type: "moveSelection"; readonly step: -1 | 1 }

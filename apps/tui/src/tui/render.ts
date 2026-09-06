@@ -196,7 +196,7 @@ function renderCandidates(state: CandidatesState): readonly string[] {
   if (rows.length > MAX_LIST) {
     lines.push(`  … and ${rows.length - MAX_LIST} more`);
   }
-  lines.push("Up/Down=select  Enter=confirm  Esc=back  Ctrl+C=interrupt");
+  lines.push("Up/Down=select Enter=confirm N=new search Esc=back ^C=quit");
   const notice = noticeLine(state);
   if (notice !== null) lines.push(notice);
   return lines;
@@ -224,9 +224,9 @@ function renderResolved(state: ResolvedState): readonly string[] {
   const notice = noticeLine(state);
   if (notice !== null) lines.push(notice, "");
   if (state.goal.kind === "lookup") {
-    lines.push("Enter=titles  Esc=back  Ctrl+C=interrupt");
+    lines.push("Enter=titles  N=new search  Esc=back  Ctrl+C=interrupt");
   } else {
-    lines.push("Esc=back  Ctrl+C=interrupt");
+    lines.push("N=new search  Esc=back  Ctrl+C=interrupt");
   }
   return lines;
 }
@@ -264,7 +264,7 @@ function renderTitles(
   if (groups.length > MAX_LIST) {
     lines.push(`  … and ${groups.length - MAX_LIST} more`);
   }
-  lines.push("Up/Down=select  Enter=detail  Esc=back  Ctrl+C=interrupt");
+  lines.push("Up/Down=select Enter=detail N=new search Esc=back ^C=quit");
   const notice = noticeLine(state);
   if (notice !== null) lines.push(notice);
   return lines;
@@ -273,7 +273,11 @@ function renderTitles(
 function renderGroupDetail(state: GroupDetailState): readonly string[] {
   const group = state.payload.groups[state.groupIndex];
   if (group === undefined) {
-    return [TITLE, "(group unavailable)", "Esc=back  Ctrl+C=interrupt"];
+    return [
+      TITLE,
+      "(group unavailable)",
+      "N=new search  Esc=back  Ctrl+C=interrupt",
+    ];
   }
   const lines: string[] = [
     TITLE,
@@ -300,6 +304,6 @@ function renderGroupDetail(state: GroupDetailState): readonly string[] {
       lines.push(`  … and ${group.attestations.length - 6} more`);
     }
   }
-  lines.push("", "Esc=back  Ctrl+C=interrupt");
+  lines.push("", "N=new search  Esc=back  Ctrl+C=interrupt");
   return lines;
 }

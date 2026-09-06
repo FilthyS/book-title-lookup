@@ -95,6 +95,15 @@ Deno.test("wd search maps a zh work doc to found candidates", async () => {
     recorder.urls.some((url) => url.includes("action=wbsearchentities")),
     "discovery ran",
   );
+  const entityRead = recorder.urls.find((url) =>
+    url.includes("action=wbgetentities")
+  );
+  assert(entityRead !== undefined, "entity details were read");
+  assertEquals(
+    new URL(entityRead).searchParams.get("redirects"),
+    "yes",
+    "MediaWiki boolean parameters use an accepted value",
+  );
 });
 
 Deno.test("wd search retries a traditional-script query in zh-Hant", async () => {
