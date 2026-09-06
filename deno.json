@@ -33,10 +33,12 @@
     "lint": "deno lint",
     "check": "deno check",
     "test": "deno test --no-prompt --allow-env=BOOK_TITLE_CONTACT,BOOK_TITLE_CACHE_DIR,BOOK_TITLE_OFFLINE,BOOK_TITLE_LOG_LEVEL,HOME,XDG_CONFIG_HOME,XDG_CACHE_HOME,LOCALAPPDATA,APPDATA,USERPROFILE --allow-run=deno --allow-read=.,fixtures/cli-json/schema,fixtures/cli-json/snapshots --allow-write=.",
+    "build": "deno run --allow-run=deno --allow-read --allow-write distribution/scripts/compile.ts",
+    "start": "deno run --no-prompt --allow-env=BOOK_TITLE_CONTACT,BOOK_TITLE_CACHE_DIR,BOOK_TITLE_OFFLINE,BOOK_TITLE_LOG_LEVEL,HOME,XDG_CONFIG_HOME,XDG_CACHE_HOME,LOCALAPPDATA,APPDATA,USERPROFILE --allow-net=openlibrary.org,wikidata.org,www.wikidata.org,query.wikidata.org --allow-read --allow-write apps/tui/src/main.ts",
     "cli": "deno run apps/tui/src/main.ts",
     "cli:version": "deno run apps/tui/src/main.ts --version",
     "cli:help": "deno run apps/tui/src/main.ts --help",
-    "prototype:mobile": "deno run --allow-net=127.0.0.1:4173 --allow-read=apps/mobile-prototype apps/mobile-prototype/serve.ts",
+    "prototype:tui": "deno run apps/tui/src/prototype.ts",
     "test:launcher": "deno test --config distribution/scripts/launcher-test.deno.json --no-prompt --allow-run=deno,node --allow-read=. --allow-write=. distribution/scripts/launcher_contract_test.ts",
     "test:live-smoke": "deno run --no-prompt --allow-env=BOOK_TITLE_CONTACT,BOOK_TITLE_CACHE_DIR,BOOK_TITLE_OFFLINE,BOOK_TITLE_LOG_LEVEL,HOME,XDG_CONFIG_HOME,XDG_CACHE_HOME,LOCALAPPDATA,APPDATA,USERPROFILE --allow-read=. --allow-write=. --allow-net=openlibrary.org apps/tui/src/smoke/live-smoke.ts"
   }

@@ -107,6 +107,45 @@ export function noticeText(
 
 const MAX_LIST = 10;
 
+interface VisibleWindow<T> {
+  readonly items: readonly T[];
+  readonly start: number;
+  readonly before: number;
+  readonly after: number;
+}
+
+/**
+ * Keep a fixed-size list window anchored to the current selection. Once the
+ * selection moves past the last visible row, the window follows it one row at
+ * a time instead of leaving the cursor off-screen.
+ */
+function visibleWindow<T>(
+  items: readonly T[],
+  selected: number,
+): VisibleWindow<T> {
+  const anchor = Math.max(0, Math.min(selected, items.length - 1));
+  const latestStart = Math.max(0, items.length - MAX_LIST);
+  const start = Math.min(Math.max(0, anchor - MAX_LIST + 1), latestStart);
+  const end = Math.min(items.length, start + MAX_LIST);
+  return {
+    items: items.slice(start, end),
+    start,
+    before: start,
+    after: items.length - end,
+  };
+}
+
+function hiddenItemsLine(
+  direction: "up" | "down",
+  count: number,
+  singular: string,
+): string {
+  const arrow = direction === "up" ? "↑" : "↓";
+  const position = direction === "up" ? "earlier" : "more";
+  const label = count === 1 ? singular : `${singular}s`;
+  return `  ${arrow} ${count} ${position} ${label}`;
+}
+
 /** Render one frame as content lines for the requested terminal size. */
 export function renderFrame(
   state: SessionState,
@@ -180,9 +219,13 @@ function renderSearching(state: SearchingState): readonly string[] {
 function renderCandidates(state: CandidatesState): readonly string[] {
   const lines: string[] = [TITLE, "Work candidates:"];
   const rows = state.pool.rows;
-  const visible = rows.slice(0, MAX_LIST);
-  for (let index = 0; index < visible.length; index += 1) {
-    const row = visible[index];
+  const window = visibleWindow(rows, state.selected);
+  if (window.before > 0) {
+    lines.push(hiddenItemsLine("up", window.before, "candidate"));
+  }
+  for (let offset = 0; offset < window.items.length; offset += 1) {
+    const index = window.start + offset;
+    const row = window.items[offset];
     const marker = index === state.selected ? ">" : " ";
     const authors = row.authors.join(", ");
     const langs = row.contentLanguages.join("/");
@@ -193,8 +236,8 @@ function renderCandidates(state: CandidatesState): readonly string[] {
     );
     if (langs !== "") lines.push(`    (${langs})`);
   }
-  if (rows.length > MAX_LIST) {
-    lines.push(`  … and ${rows.length - MAX_LIST} more`);
+  if (window.after > 0) {
+    lines.push(hiddenItemsLine("down", window.after, "candidate"));
   }
   lines.push("Up/Down=select Enter=confirm N=new search Esc=back ^C=quit");
   const notice = noticeLine(state);
@@ -249,9 +292,13 @@ function renderTitles(
     TITLE,
     `Title groups for '${state.snapshot.work.title}':`,
   ];
-  const visible = groups.slice(0, MAX_LIST);
-  for (let index = 0; index < visible.length; index += 1) {
-    const group = visible[index];
+  const window = visibleWindow(groups, selection.groups);
+  if (window.before > 0) {
+    lines.push(hiddenItemsLine("up", window.before, "title group"));
+  }
+  for (let offset = 0; offset < window.items.length; offset += 1) {
+    const index = window.start + offset;
+    const group = window.items[offset];
     const marker = index === selection.groups ? ">" : " ";
     const flags = [
       group.language,
@@ -261,8 +308,8 @@ function renderTitles(
     lines.push(`${marker} ${index + 1}. ${group.title}  [${flags}]`);
   }
   if (groups.length === 0) lines.push("(no groups listed)");
-  if (groups.length > MAX_LIST) {
-    lines.push(`  … and ${groups.length - MAX_LIST} more`);
+  if (window.after > 0) {
+    lines.push(hiddenItemsLine("down", window.after, "title group"));
   }
   lines.push("Up/Down=select Enter=detail N=new search Esc=back ^C=quit");
   const notice = noticeLine(state);

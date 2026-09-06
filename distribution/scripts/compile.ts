@@ -39,10 +39,15 @@ export function archToCpu(arch: string): string | undefined {
   return undefined;
 }
 
+/** Translate Deno's OS vocabulary to the Node/npm tokens in the target table. */
+export function denoOsToNodePlatform(os: string): string {
+  return os === "windows" ? "win32" : os;
+}
+
 export function hostTarget(): TargetInfo | undefined {
   const cpu = archToCpu(Deno.build.arch);
   if (cpu === undefined) return undefined;
-  return targetForHost(Deno.build.os, cpu);
+  return targetForHost(denoOsToNodePlatform(Deno.build.os), cpu);
 }
 
 function parseArgs(argv: readonly string[]): {

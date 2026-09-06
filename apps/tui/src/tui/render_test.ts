@@ -81,6 +81,30 @@ function candidatesState(): SessionState {
   ]);
 }
 
+function manyCandidatesState(count: number): SessionState {
+  const typed = typeTitle(querySeed(), "百年孤独");
+  const searching = drive(typed, [{ type: "submitSearch" }]);
+  return drive(searching, [
+    { type: "requestStarted", slot: "search", requestId: "many" },
+    {
+      type: "searchOutcome",
+      requestId: "many",
+      outcome: {
+        status: "found",
+        candidates: Array.from({ length: count }, (_, index) => ({
+          ref: `c-${index + 1}` as unknown as CandidateRef,
+          title: `Candidate ${index + 1}`,
+          alternativeTitles: [],
+          authors: [`Author ${index + 1}`],
+          contentLanguages: [],
+          references: [],
+        })),
+        warnings: [],
+      },
+    },
+  ]);
+}
+
 function resolvedWorkTitleState(): SessionState {
   const state = drive(candidatesState(), [{ type: "moveSelection", step: 1 }]);
   const resolving = drive(state, [{ type: "confirmCandidate" }]);
@@ -146,6 +170,22 @@ function groupDetailState(): SessionState {
   return drive(titlesState(), [{ type: "selectGroup", index: 0 }]);
 }
 
+function manyTitlesState(count: number): SessionState {
+  const state = titlesState();
+  if (state.screen !== "titles") throw new Error("expected titles state");
+  const template = state.payload.groups[0];
+  return {
+    ...state,
+    payload: {
+      ...state.payload,
+      groups: Array.from({ length: count }, (_, index) => ({
+        ...template,
+        title: `Title ${index + 1}`,
+      })),
+    },
+  };
+}
+
 Deno.test("query frame renders input without a separate cursor line", () => {
   const state = typeTitle(querySeed(), "百年孤独");
   const lines = renderFrame(state, SIZE_60x16);
@@ -205,6 +245,30 @@ Deno.test("candidates frame renders an exact snapshot", () => {
   );
 });
 
+Deno.test("candidate list scrolls to keep an item beyond the first ten visible", () => {
+  const state = drive(
+    manyCandidatesState(12),
+    Array.from({ length: 10 }, () => ({
+      type: "moveSelection",
+      step: 1,
+    })),
+  );
+  assertEquals(state.screen, "candidates");
+  if (state.screen !== "candidates") throw new Error("expected candidates");
+  assertEquals(state.selected, 10);
+  const lines = renderFrame(state, SIZE_60x16);
+  assertEquals(
+    lines.includes("> 11. Candidate 11 — Author 11"),
+    true,
+  );
+  assertEquals(lines.includes("  ↑ 1 earlier candidate"), true);
+  assertEquals(lines.includes("  ↓ 1 more candidate"), true);
+  assertEquals(
+    lines.some((line) => line.startsWith("  1. Candidate 1")),
+    false,
+  );
+});
+
 Deno.test("resolved frame shows the work under goal lookup with a titles hint", () => {
   const loading = resolvedWorkTitleState();
   assertEquals(loading.screen, "titles_loading");
@@ -230,6 +294,21 @@ Deno.test("titles frame lists groups with the selection marker", () => {
     lines.includes("Up/Down=select Enter=detail N=new search Esc=back ^C=quit"),
     true,
   );
+});
+
+Deno.test("title list scrolls to keep an item beyond the first ten visible", () => {
+  const lines = renderFrame(
+    manyTitlesState(12),
+    SIZE_60x16,
+    { groups: 10 },
+  );
+  assertEquals(
+    lines.some((line) => line.startsWith("> 11. Title 11")),
+    true,
+  );
+  assertEquals(lines.includes("  ↑ 1 earlier title group"), true);
+  assertEquals(lines.includes("  ↓ 1 more title group"), true);
+  assertEquals(lines.some((line) => line.startsWith("  1. Title 1")), false);
 });
 
 Deno.test("group_detail frame expands the selected group", () => {
