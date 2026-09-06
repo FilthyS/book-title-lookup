@@ -140,9 +140,16 @@ Deno.test("platform/locator deterministic fixture roots match platform table", (
   });
 });
 
-Deno.test("platform/locator detects platform kind from Deno build os", () => {
+Deno.test("platform/locator maps supported Node platform tokens", () => {
+  assertEquals(detectPlatformKind("win32"), "windows" as PlatformKind);
   assertEquals(detectPlatformKind("windows"), "windows" as PlatformKind);
   assertEquals(detectPlatformKind("darwin"), "darwin" as PlatformKind);
   assertEquals(detectPlatformKind("linux"), "linux" as PlatformKind);
-  assertEquals(detectPlatformKind("freebsd"), "linux" as PlatformKind);
+  let unsupported: unknown;
+  try {
+    detectPlatformKind("freebsd");
+  } catch (error) {
+    unsupported = error;
+  }
+  assertEquals(unsupported instanceof RangeError, true);
 });

@@ -37,16 +37,16 @@ export function compareGroups(a: TitleGroup, b: TitleGroup): number {
   if (levelDelta !== 0) return levelDelta;
   // 2. Strong identifier support approximated by supporting members that
   //    carry at least one Edition reference.
-  const aId =
-    a.attestations.filter((member) =>
+  const aId = a.attestations.filter(
+    (member) =>
       member.role === "edition_title" ||
-      member.role === "edition_display_fallback"
-    ).length;
-  const bId =
-    b.attestations.filter((member) =>
+      member.role === "edition_display_fallback",
+  ).length;
+  const bId = b.attestations.filter(
+    (member) =>
       member.role === "edition_title" ||
-      member.role === "edition_display_fallback"
-    ).length;
+      member.role === "edition_display_fallback",
+  ).length;
   if (aId !== bId) return bId - aId;
   // 3. Distinct source namespaces among members.
   const aSources = new Set(a.attestations.map((member) => member.source)).size;
@@ -69,14 +69,19 @@ export function compareGroups(a: TitleGroup, b: TitleGroup): number {
 }
 
 function groupKeyForCompare(group: TitleGroup): string {
-  return group.language + "\u0000" +
-    group.title.normalize("NFC").trim().replace(/\s+/g, " ") + "\u0000" +
+  return (
+    group.language +
+    "\u0000" +
+    group.title.normalize("NFC").trim().replace(/\s+/g, " ") +
+    "\u0000" +
     (group.subtitle === null
       ? ""
       : group.subtitle.normalize("NFC").trim().replace(/\s+/g, " ")) +
-    "\u0000" + group.attestations
-    .map((member) => `${member.source}:${member.sourceRecordUrl}`)
-    .join(",");
+    "\u0000" +
+    group.attestations
+      .map((member) => `${member.source}:${member.sourceRecordUrl}`)
+      .join(",")
+  );
 }
 
 function languageOrderKey(language: string): string {
@@ -110,16 +115,17 @@ export function finalizeGroups(
 
   // Original-title annotation (issue #7 section 10.4): only with explicit
   // original-language evidence on a group containing Work-level statements.
-  const annotated = originalLanguage === undefined
-    ? satisfied
-    : satisfied.map((group) =>
-      group.language === originalLanguage &&
-        group.attestations.some(
-          (member) => member.role === "work_original_title",
-        )
-        ? { ...group, originalTitle: true }
-        : group
-    );
+  const annotated =
+    originalLanguage === undefined
+      ? satisfied
+      : satisfied.map((group) =>
+          group.language === originalLanguage &&
+          group.attestations.some(
+            (member) => member.role === "work_original_title",
+          )
+            ? { ...group, originalTitle: true }
+            : group,
+        );
 
   // Recommendation: exactly one visible default group per concrete language.
   const recommended = new Set<TitleGroup>();
@@ -137,14 +143,16 @@ export function finalizeGroups(
     recommended.add(visible[0]);
   }
 
-  const sorted = [...annotated].sort((a, b) => {
-    const aKey = languageOrderKey(a.language);
-    const bKey = languageOrderKey(b.language);
-    if (aKey !== bKey) return aKey < bKey ? -1 : 1;
-    return compareGroups(a, b);
-  }).map((group) =>
-    recommended.has(group) ? { ...group, recommended: true } : group
-  );
+  const sorted = [...annotated]
+    .sort((a, b) => {
+      const aKey = languageOrderKey(a.language);
+      const bKey = languageOrderKey(b.language);
+      if (aKey !== bKey) return aKey < bKey ? -1 : 1;
+      return compareGroups(a, b);
+    })
+    .map((group) =>
+      recommended.has(group) ? { ...group, recommended: true } : group,
+    );
 
   const anyVisible = sorted.some(isVisible);
   return {

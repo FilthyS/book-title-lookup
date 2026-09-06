@@ -27,14 +27,16 @@ const workRef = "w-1" as unknown as ResolvedWorkRef;
 function foundOutcome(): SearchOutcome {
   return {
     status: "found",
-    candidates: [{
-      ref: candidateRef,
-      title: "小王子",
-      alternativeTitles: [],
-      authors: ["Antoine de Saint-Exupéry"],
-      contentLanguages: ["zh"],
-      references: [{ namespace: "openlibrary:work", value: "OL1W" }],
-    }],
+    candidates: [
+      {
+        ref: candidateRef,
+        title: "小王子",
+        alternativeTitles: [],
+        authors: ["Antoine de Saint-Exupéry"],
+        contentLanguages: ["zh"],
+        references: [{ namespace: "openlibrary:work", value: "OL1W" }],
+      },
+    ],
     warnings: [],
   };
 }

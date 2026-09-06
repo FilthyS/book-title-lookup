@@ -32,30 +32,30 @@ export type Message =
   | { readonly type: "resolveReference"; readonly reference: ExternalReference }
   | { readonly type: "viewTitles" }
   | {
-    readonly type: "changeTargetLanguages";
-    readonly tags: readonly LanguageTag[];
-  }
+      readonly type: "changeTargetLanguages";
+      readonly tags: readonly LanguageTag[];
+    }
   | { readonly type: "selectGroup"; readonly index: number }
   | { readonly type: "back" }
   | { readonly type: "quit" }
   | { readonly type: "interrupt" }
   | {
-    readonly type: "requestStarted";
-    readonly slot: RequestSlot;
-    readonly requestId: string;
-  }
+      readonly type: "requestStarted";
+      readonly slot: RequestSlot;
+      readonly requestId: string;
+    }
   | {
-    readonly type: "searchOutcome";
-    readonly requestId: string;
-    readonly outcome: SearchOutcome;
-  }
+      readonly type: "searchOutcome";
+      readonly requestId: string;
+      readonly outcome: SearchOutcome;
+    }
   | {
-    readonly type: "resolveOutcome";
-    readonly requestId: string;
-    readonly outcome: ResolveOutcome;
-  }
+      readonly type: "resolveOutcome";
+      readonly requestId: string;
+      readonly outcome: ResolveOutcome;
+    }
   | {
-    readonly type: "titlesOutcome";
-    readonly requestId: string;
-    readonly outcome: TitleLookupOutcome;
-  };
+      readonly type: "titlesOutcome";
+      readonly requestId: string;
+      readonly outcome: TitleLookupOutcome;
+    };

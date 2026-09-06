@@ -116,9 +116,7 @@ export class ProviderRuntime {
    * workflows must use this for redirects and pagination rather than granting
    * every plan a fresh budget.
    */
-  beginOperation(
-    options: RuntimeRequestOptions = {},
-  ): RuntimeOperation {
+  beginOperation(options: RuntimeRequestOptions = {}): RuntimeOperation {
     const mode = options.mode ?? "online";
     const budgetMs = options.sourceBudgetMs ?? this.#config.sourceBudgetMs;
     const deadlineMs = this.#effects.now() + Math.max(1, budgetMs);
@@ -307,7 +305,8 @@ export class ProviderRuntime {
         };
         const location = envelope.response.location;
         if (
-          isRedirectStatus(envelope.response.status) && location !== undefined
+          isRedirectStatus(envelope.response.status) &&
+          location !== undefined
         ) {
           const resolved = this.#followRedirect(currentUrl, location);
           if (!resolved.ok) {
@@ -330,10 +329,12 @@ export class ProviderRuntime {
   #followRedirect(
     currentUrl: string,
     location: string,
-  ): { readonly ok: true; readonly to: string } | {
-    readonly ok: false;
-    readonly reason: string;
-  } {
+  ):
+    | { readonly ok: true; readonly to: string }
+    | {
+        readonly ok: false;
+        readonly reason: string;
+      } {
     return resolveRedirectLocation(currentUrl, location, this.#config.hosts);
   }
 
@@ -567,19 +568,20 @@ export class ProviderRuntime {
   ): Promise<RunOutcome<D>> {
     const envelope = state.envelope;
     const response = state.response;
-    const transport: TransportEnvelope = envelope !== undefined
-      ? {
-        status: envelope.response.status,
-        contentType: envelope.response.contentType ?? null,
-        body: decodeEnvelopeBody(envelope),
-        finalUrl: state.finalUrl,
-      }
-      : {
-        status: response?.status ?? 0,
-        contentType: response?.contentType ?? null,
-        body: response?.body ?? new Uint8Array(),
-        finalUrl: state.finalUrl,
-      };
+    const transport: TransportEnvelope =
+      envelope !== undefined
+        ? {
+            status: envelope.response.status,
+            contentType: envelope.response.contentType ?? null,
+            body: decodeEnvelopeBody(envelope),
+            finalUrl: state.finalUrl,
+          }
+        : {
+            status: response?.status ?? 0,
+            contentType: response?.contentType ?? null,
+            body: response?.body ?? new Uint8Array(),
+            finalUrl: state.finalUrl,
+          };
 
     const decoded = await context.plan.decoder(transport);
     if (decoded.kind === "malformed") {
@@ -593,11 +595,13 @@ export class ProviderRuntime {
     }
 
     if (
-      envelope === undefined && context.mode === "online" &&
+      envelope === undefined &&
+      context.mode === "online" &&
       context.plan.cacheClass !== undefined &&
       isCacheableTerminal(transport, decoded.kind)
     ) {
-      const negative = isDefinitiveAbsence(transport.status) ||
+      const negative =
+        isDefinitiveAbsence(transport.status) ||
         (decoded.kind === "data" && decoded.negative === true);
       await this.#writeTerminalEnvelope(
         context,
@@ -618,10 +622,11 @@ export class ProviderRuntime {
   }
 
   #metaFor(context: ExecuteContext, state: TerminalState): ResponseMeta {
-    const status = state.envelope?.response.status ??
-      state.response?.status;
-    const contentType = state.envelope?.response.contentType ??
-      state.response?.contentType ?? null;
+    const status = state.envelope?.response.status ?? state.response?.status;
+    const contentType =
+      state.envelope?.response.contentType ??
+      state.response?.contentType ??
+      null;
     const fetchedAt = new Date(this.#effects.now()).toISOString();
     return {
       requestedUrl: context.requestedUrl,
@@ -743,8 +748,8 @@ function isCacheableTerminal(
   const contentType = transport.contentType?.toLowerCase() ?? "";
   if (contentType.includes("json")) return true;
   if (transport.contentType !== null) return false;
-  const firstNonWhitespace = transport.body.find((byte) =>
-    byte !== 0x20 && byte !== 0x09 && byte !== 0x0a && byte !== 0x0d
+  const firstNonWhitespace = transport.body.find(
+    (byte) => byte !== 0x20 && byte !== 0x09 && byte !== 0x0a && byte !== 0x0d,
   );
   return firstNonWhitespace === 0x7b || firstNonWhitespace === 0x5b;
 }

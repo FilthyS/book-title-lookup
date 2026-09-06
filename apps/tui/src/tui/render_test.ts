@@ -147,17 +147,19 @@ function titlesState(): SessionState {
             recommended: true,
             satisfiesRequest: false,
             originalTitle: false,
-            attestations: [{
-              source: "openlibrary",
-              role: "edition_title",
-              text: "Cien años de soledad",
-              subtitle: null,
-              language: "es",
-              sourceRecordUrl: "https://openlibrary.org/works/OL1W",
-              references: [],
-              stale: false,
-              fetchedAt: "2026-09-05T00:00:00.000Z",
-            }],
+            attestations: [
+              {
+                source: "openlibrary",
+                role: "edition_title",
+                text: "Cien años de soledad",
+                subtitle: null,
+                language: "es",
+                sourceRecordUrl: "https://openlibrary.org/works/OL1W",
+                references: [],
+                stale: false,
+                fetchedAt: "2026-09-05T00:00:00.000Z",
+              },
+            ],
           },
         ],
         warnings: [],
@@ -199,18 +201,19 @@ Deno.test("query frame distinguishes the title and frames the input", () => {
 
 Deno.test("cursor column accounts for double-width Chinese", () => {
   const typed = typeTitle(querySeed(), "小王子");
-  const moved = drive(typed, [{ type: "home" }, {
-    type: "moveCursor",
-    step: 1,
-  }]);
+  const moved = drive(typed, [
+    { type: "home" },
+    {
+      type: "moveCursor",
+      step: 1,
+    },
+  ]);
   // "│ " is 2 columns; 小 contributes 2 => zero-based caret column 4.
   assertEquals(cursorColumn(moved), 4);
 });
 
 Deno.test("invalid submit shows the input.invalid notice", () => {
-  const state = drive(querySeed(), [
-    { type: "submitSearch" },
-  ]);
+  const state = drive(querySeed(), [{ type: "submitSearch" }]);
   const lines = renderFrame(state, SIZE_60x16);
   assertEquals(
     lines.includes(
@@ -259,12 +262,18 @@ Deno.test("candidate page offers structurally distinct stacked and compact layou
     layout: "compact",
   });
 
-  assertEquals(stacked.some((line) => line.startsWith("┌ > 1 ")), true);
+  assertEquals(
+    stacked.some((line) => line.startsWith("┌ > 1 ")),
+    true,
+  );
   assertEquals(
     compact.includes("> 1. 百年孤独 — Gabriel García Márquez  [zh]"),
     true,
   );
-  assertEquals(compact.some((line) => line.startsWith("┌ > 1 ")), false);
+  assertEquals(
+    compact.some((line) => line.startsWith("┌ > 1 ")),
+    false,
+  );
   assertEquals(stacked.join("\n") === compact.join("\n"), false);
 });
 
@@ -283,10 +292,7 @@ Deno.test("candidate list scrolls to keep an item beyond the first ten visible",
     groups: 0,
     layout: "compact",
   });
-  assertEquals(
-    lines.includes("> 11. Candidate 11 — Author 11"),
-    true,
-  );
+  assertEquals(lines.includes("> 11. Candidate 11 — Author 11"), true);
   assertEquals(lines.includes("  ↑ 1 earlier candidate"), true);
   assertEquals(lines.includes("  ↓ 1 more candidate"), true);
   assertEquals(
@@ -307,7 +313,10 @@ Deno.test("stacked candidate list scrolls within the terminal height", () => {
     groups: 0,
     layout: "stacked",
   });
-  assertEquals(lines.some((line) => line.startsWith("┌ > 11 ")), true);
+  assertEquals(
+    lines.some((line) => line.startsWith("┌ > 11 ")),
+    true,
+  );
   assertEquals(lines.length <= SIZE_60x16.rows, true);
 });
 
@@ -343,29 +352,33 @@ Deno.test("titles frame lists groups with the selection marker", () => {
 });
 
 Deno.test("title list scrolls to keep an item beyond the first ten visible", () => {
-  const lines = renderFrame(
-    manyTitlesState(12),
-    SIZE_60x16,
-    { groups: 10, layout: "compact" },
-  );
+  const lines = renderFrame(manyTitlesState(12), SIZE_60x16, {
+    groups: 10,
+    layout: "compact",
+  });
   assertEquals(
     lines.some((line) => line.startsWith("> 11. Title 11")),
     true,
   );
   assertEquals(lines.includes("  ↑ 1 earlier title group"), true);
   assertEquals(lines.includes("  ↓ 1 more title group"), true);
-  assertEquals(lines.some((line) => line.startsWith("  1. Title 1")), false);
+  assertEquals(
+    lines.some((line) => line.startsWith("  1. Title 1")),
+    false,
+  );
 });
 
 Deno.test("stacked title list scrolls within the terminal height", () => {
-  const lines = renderFrame(
-    manyTitlesState(12),
-    SIZE_60x16,
-    { groups: 10, layout: "stacked" },
+  const lines = renderFrame(manyTitlesState(12), SIZE_60x16, {
+    groups: 10,
+    layout: "stacked",
+  });
+  assertEquals(
+    lines.some((line) => line.startsWith("┌ > 11 ·")),
+    true,
   );
-  assertEquals(lines.some((line) => line.startsWith("┌ > 11 ·")), true);
   const moreIndex = lines.findIndex((line) =>
-    line.includes("more title group")
+    line.includes("more title group"),
   );
   assertEquals(moreIndex >= 0, true);
   assertEquals(lines[moreIndex - 1], `└${"─".repeat(58)}┘`);
@@ -376,15 +389,14 @@ Deno.test("stacked title list closes the last box before its overflow hint", () 
   for (const columns of [60, 78, 100]) {
     for (let rows = 16; rows <= 40; rows++) {
       const size: TerminalSize = { columns, rows };
-      const lines = renderFrame(
-        manyTitlesState(12),
-        size,
-        { groups: 0, layout: "stacked" },
-      );
+      const lines = renderFrame(manyTitlesState(12), size, {
+        groups: 0,
+        layout: "stacked",
+      });
       const topBorders = lines.filter((line) => line.startsWith("┌")).length;
       const bottomBorder = `└${"─".repeat(columns - 2)}┘`;
-      const bottomBorders = lines.filter((line) =>
-        line === bottomBorder
+      const bottomBorders = lines.filter(
+        (line) => line === bottomBorder,
       ).length;
       assertEquals(
         bottomBorders,
@@ -393,7 +405,7 @@ Deno.test("stacked title list closes the last box before its overflow hint", () 
       );
 
       const visibleTitles = lines.filter((line) =>
-        /Title \d+/.test(line)
+        /Title \d+/.test(line),
       ).length;
       if (visibleTitles < 12) {
         assertEquals(
@@ -410,7 +422,10 @@ Deno.test("stacked title list closes the last box before its overflow hint", () 
 Deno.test("group_detail frame expands the selected group", () => {
   const lines = renderFrame(groupDetailState(), SIZE_60x16);
   assertEquals(lines[1], "Group: Cien años de soledad");
-  assertEquals(lines.some((line) => line.includes("edition title")), true);
+  assertEquals(
+    lines.some((line) => line.includes("edition title")),
+    true,
+  );
   assertEquals(
     lines.includes("N=new search  Esc=back  Ctrl+C=interrupt"),
     true,
@@ -431,12 +446,7 @@ Deno.test("below-minimum size renders the resize message", () => {
 Deno.test("below-minimum frame fits within a tiny terminal width", () => {
   const state = typeTitle(querySeed(), "百年孤独");
   const lines = renderFrame(state, { columns: 10, rows: 5 });
-  assertEquals(lines, [
-    "Book Title",
-    "Terminal t",
-    "Current si",
-    "Resize the",
-  ]);
+  assertEquals(lines, ["Book Title", "Terminal t", "Current si", "Resize the"]);
 });
 
 Deno.test("every padded driver line has the exact terminal width", () => {

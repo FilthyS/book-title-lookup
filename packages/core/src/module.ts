@@ -73,17 +73,13 @@ export interface RequestOptions {
 export type ResolveTarget =
   | { readonly kind: "candidate"; readonly ref: CandidateRef }
   | {
-    readonly kind: "externalReference";
-    readonly reference: ExternalReference;
-  };
+      readonly kind: "externalReference";
+      readonly reference: ExternalReference;
+    };
 
-export type ResolveConfirmation =
-  | "strong_reference"
-  | "candidate_confirmed";
+export type ResolveConfirmation = "strong_reference" | "candidate_confirmed";
 
-export type ResolveChoiceReason =
-  | "ambiguous_identifier"
-  | "indirect_evidence";
+export type ResolveChoiceReason = "ambiguous_identifier" | "indirect_evidence";
 
 /** A Work Candidate offered for confirmation. Never serializes its ref;
  *  automation selects the candidate by one of its External References. */
@@ -150,58 +146,58 @@ export interface TitleGroup {
 
 export type SearchOutcome =
   | {
-    readonly status: "found";
-    readonly candidates: readonly WorkCandidate[];
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "found";
+      readonly candidates: readonly WorkCandidate[];
+      readonly warnings: readonly SourceWarning[];
+    }
   | {
-    readonly status: "not_found";
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "not_found";
+      readonly warnings: readonly SourceWarning[];
+    }
   | {
-    readonly status: "failed";
-    readonly failures: readonly SourceFailure[];
-  }
+      readonly status: "failed";
+      readonly failures: readonly SourceFailure[];
+    }
   | { readonly status: "cancelled" };
 
 export type ResolveOutcome =
   | {
-    readonly status: "resolved";
-    readonly work: ResolvedWork;
-    readonly confirmation: ResolveConfirmation;
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "resolved";
+      readonly work: ResolvedWork;
+      readonly confirmation: ResolveConfirmation;
+      readonly warnings: readonly SourceWarning[];
+    }
   | {
-    readonly status: "needs_choice";
-    readonly reason: ResolveChoiceReason;
-    readonly candidates: readonly WorkCandidate[];
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "needs_choice";
+      readonly reason: ResolveChoiceReason;
+      readonly candidates: readonly WorkCandidate[];
+      readonly warnings: readonly SourceWarning[];
+    }
   | {
-    readonly status: "not_found";
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "not_found";
+      readonly warnings: readonly SourceWarning[];
+    }
   | {
-    readonly status: "failed";
-    readonly failures: readonly SourceFailure[];
-  }
+      readonly status: "failed";
+      readonly failures: readonly SourceFailure[];
+    }
   | { readonly status: "cancelled" };
 
 export type TitleLookupOutcome =
   | {
-    readonly status: "found";
-    readonly groups: readonly TitleGroup[];
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "found";
+      readonly groups: readonly TitleGroup[];
+      readonly warnings: readonly SourceWarning[];
+    }
   | {
-    readonly status: "no_attested_titles";
-    readonly groups: readonly TitleGroup[];
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "no_attested_titles";
+      readonly groups: readonly TitleGroup[];
+      readonly warnings: readonly SourceWarning[];
+    }
   | {
-    readonly status: "failed";
-    readonly failures: readonly SourceFailure[];
-  }
+      readonly status: "failed";
+      readonly failures: readonly SourceFailure[];
+    }
   | { readonly status: "cancelled" };
 
 /**

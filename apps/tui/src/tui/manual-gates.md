@@ -11,7 +11,7 @@ sequence; a human confirms the live behaviour below.
 Run the TUI from Windows Terminal:
 
 ```powershell
-deno run apps/tui/src/main.ts
+npm start
 ```
 
 `book-title` with no command in a terminal (no `--json`) starts the full-screen

@@ -54,10 +54,13 @@ function titleText(state: SessionState): string {
 export function cursorColumn(state: SessionState): number {
   const prefix = measureWidth("│ ");
   const text = titleText(state);
-  const before = text === ""
-    ? 0
-    : clustersOf(text.slice(0, state.draft.fields.title.cursor))
-      .reduce((sum, cluster) => sum + cluster.width, 0);
+  const before =
+    text === ""
+      ? 0
+      : clustersOf(text.slice(0, state.draft.fields.title.cursor)).reduce(
+          (sum, cluster) => sum + cluster.width,
+          0,
+        );
   return prefix + before;
 }
 
@@ -74,9 +77,7 @@ export function noticeLine(state: SessionState): string | null {
 }
 
 /** Stable English text for each structured notice message key. */
-export function noticeText(
-  notice: { readonly messageKey: string },
-): string {
+export function noticeText(notice: { readonly messageKey: string }): string {
   let text: string;
   switch (notice.messageKey) {
     case "lookup.notFound":
@@ -100,14 +101,14 @@ export function noticeText(
     default:
       text = "";
   }
-  const warnings = "warnings" in notice
-    ? (notice as { warnings: unknown[] })
-      .warnings.length
-    : 0;
-  const failures = "failures" in notice
-    ? (notice as { failures: unknown[] })
-      .failures.length
-    : 0;
+  const warnings =
+    "warnings" in notice
+      ? (notice as { warnings: unknown[] }).warnings.length
+      : 0;
+  const failures =
+    "failures" in notice
+      ? (notice as { failures: unknown[] }).failures.length
+      : 0;
   if (failures > 0) return `${text} (${failures} source failure(s))`;
   if (warnings > 0) return `${text} (${warnings} warning(s))`;
   return text;
@@ -171,9 +172,9 @@ function visibleItemLimit(
 function boxTop(label: string, width: number): string {
   const available = Math.max(0, width - 2);
   const decorated = truncateTo(` ${label} `, available);
-  return `┌${decorated}${
-    "─".repeat(Math.max(0, available - measureWidth(decorated)))
-  }┐`;
+  return `┌${decorated}${"─".repeat(
+    Math.max(0, available - measureWidth(decorated)),
+  )}┐`;
 }
 
 function boxRow(content: string, width: number): string {
@@ -237,10 +238,7 @@ function queryFilterLine(state: SessionState): readonly string[] {
   return lines;
 }
 
-function renderQuery(
-  state: QueryState,
-  size: TerminalSize,
-): readonly string[] {
+function renderQuery(state: QueryState, size: TerminalSize): readonly string[] {
   const text = titleText(state);
   const lines: string[] = [
     TITLE,
@@ -292,9 +290,9 @@ function renderCandidates(
     const authors = row.authors.join(", ");
     const langs = row.contentLanguages.join("/");
     if (layout === "stacked") {
-      const details = [authors, langs].filter((part) => part !== "").join(
-        " · ",
-      );
+      const details = [authors, langs]
+        .filter((part) => part !== "")
+        .join(" · ");
       lines.push(
         boxTop(`${marker} ${index + 1}`, size.columns),
         boxRow(row.title, size.columns),
@@ -350,12 +348,7 @@ function renderResolved(state: ResolvedState): readonly string[] {
 }
 
 function renderTitlesLoading(_state: TitlesLoadingState): readonly string[] {
-  return [
-    TITLE,
-    "Loading title groups…",
-    "",
-    "Esc=cancel  Ctrl+C=interrupt",
-  ];
+  return [TITLE, "Loading title groups…", "", "Esc=cancel  Ctrl+C=interrupt"];
 }
 
 function renderTitles(
@@ -387,13 +380,17 @@ function renderTitles(
       group.language,
       group.level,
       group.originalTitle ? "original" : "",
-    ].filter((part) => part !== "").join(" ");
+    ]
+      .filter((part) => part !== "")
+      .join(" ");
     if (selection.layout === "stacked") {
       const stackedFlags = [
         group.language,
         group.level,
         group.originalTitle ? "original" : "",
-      ].filter((part) => part !== "").join(" · ");
+      ]
+        .filter((part) => part !== "")
+        .join(" · ");
       lines.push(
         boxTop(`${marker} ${index + 1} · ${stackedFlags}`, size.columns),
         boxRow(group.title, size.columns),
@@ -436,13 +433,14 @@ function renderGroupDetail(state: GroupDetailState): readonly string[] {
     lines.push("No attestations for this group.");
   } else {
     for (const attestation of group.attestations.slice(0, 6)) {
-      const role = attestation.role === "edition_title"
-        ? "edition title"
-        : attestation.role === "edition_subtitle"
-        ? "edition subtitle"
-        : attestation.role === "work_original_title"
-        ? "original title"
-        : "display";
+      const role =
+        attestation.role === "edition_title"
+          ? "edition title"
+          : attestation.role === "edition_subtitle"
+            ? "edition subtitle"
+            : attestation.role === "work_original_title"
+              ? "original title"
+              : "display";
       lines.push(`- ${attestation.text}  [${attestation.source} · ${role}]`);
     }
     if (group.attestations.length > 6) {

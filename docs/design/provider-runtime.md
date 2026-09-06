@@ -1,5 +1,10 @@
 # Provider Runtime Design
 
+> [!NOTE]
+> ADR 0004 supersedes the Deno-specific implementation assessment in this
+> planning record. The provider policy, decoding, HTTP, and test-seam decisions
+> remain runtime-independent and in force.
+
 Decision deliverable for [issue #8 — Choose provider decoding and HTTP
 seams](https://github.com/FilthyS/book-title-lookup/issues/8).
 

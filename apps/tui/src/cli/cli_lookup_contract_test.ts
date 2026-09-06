@@ -7,19 +7,11 @@
 
 import { assert, assertEquals, assertMatch } from "@std/assert";
 import { type CliDeps, runCli } from "./dispatch.ts";
-import {
-  MemoryEnvironment,
-} from "../../../../packages/providers/src/platform/env.ts";
-import {
-  DenoFileSystemSeam,
-} from "../../../../packages/providers/src/cache/fs-seam.ts";
+import { MemoryEnvironment } from "../../../../packages/providers/src/platform/env.ts";
+import { NodeFileSystemSeam } from "../../../../packages/providers/src/cache/fs-seam.ts";
 import { FixedClock } from "../../../../packages/providers/src/cache/clock.ts";
-import {
-  systemRandomSource,
-} from "../../../../packages/providers/src/cache/random.ts";
-import {
-  detectPlatformKind,
-} from "../../../../packages/providers/src/platform/platform.ts";
+import { systemRandomSource } from "../../../../packages/providers/src/cache/random.ts";
+import { detectPlatformKind } from "../../../../packages/providers/src/platform/platform.ts";
 import { loadSchema, validateAgainstSchema } from "../json/schema-validate.ts";
 import { createFakeBookTitleCatalog } from "../catalog/fixture-catalog.ts";
 
@@ -62,7 +54,7 @@ function makeDeps(signal?: AbortSignal): {
       stdout,
       stderr,
       env: new MemoryEnvironment({}),
-      fs: new DenoFileSystemSeam(),
+      fs: new NodeFileSystemSeam(),
       platform: detectPlatformKind(Deno.build.os),
       clock: new FixedClock("2026-09-05T00:00:00.000Z"),
       random: systemRandomSource,
@@ -273,9 +265,11 @@ Deno.test("cli R5 duplicate isbn returns needs_choice ambiguous_identifier", asy
   const doc = parseDoc(run);
   assertEquals(doc.status, "needs_choice");
   assertEquals(doc.reason, "ambiguous_identifier");
-  assert((doc.warnings as { code: string }[]).some(
-    (warning) => warning.code === "duplicate_identifier",
-  ));
+  assert(
+    (doc.warnings as { code: string }[]).some(
+      (warning) => warning.code === "duplicate_identifier",
+    ),
+  );
   await validateDoc(doc);
 });
 
@@ -322,12 +316,10 @@ Deno.test("cli R8 all resolution paths failed is exit 10", async () => {
 Deno.test("cli R9 cancelled resolve exit 130", async () => {
   const controller = new AbortController();
   controller.abort();
-  const run = await runOut([
-    "resolve",
-    "--reference",
-    "openlibrary:work:OL274505W",
-    "--json",
-  ], controller.signal);
+  const run = await runOut(
+    ["resolve", "--reference", "openlibrary:work:OL274505W", "--json"],
+    controller.signal,
+  );
   assertEquals(run.code, 130);
   const doc = parseDoc(run);
   assertEquals(doc.status, "cancelled");
@@ -367,11 +359,11 @@ Deno.test("cli T1 multi-language titles found with one recommendation per langua
   const doc = parseDoc(run);
   assertEquals(doc.status, "found");
   const groups = doc.groups as { language: string; recommended: boolean }[];
-  const esRecommended = groups.filter((g) =>
-    g.language === "es" && g.recommended
+  const esRecommended = groups.filter(
+    (g) => g.language === "es" && g.recommended,
   );
-  const zhRecommended = groups.filter((g) =>
-    g.language === "zh" && g.recommended
+  const zhRecommended = groups.filter(
+    (g) => g.language === "zh" && g.recommended,
   );
   assertEquals(esRecommended.length, 1);
   assertEquals(zhRecommended.length, 1);
@@ -461,12 +453,10 @@ Deno.test("cli T8 all title paths failed is exit 10", async () => {
 Deno.test("cli T9 cancelled titles exit 130", async () => {
   const controller = new AbortController();
   controller.abort();
-  const run = await runOut([
-    "titles",
-    "--reference",
-    "openlibrary:work:OL274505W",
-    "--json",
-  ], controller.signal);
+  const run = await runOut(
+    ["titles", "--reference", "openlibrary:work:OL274505W", "--json"],
+    controller.signal,
+  );
   assertEquals(run.code, 130);
   const doc = parseDoc(run);
   assertEquals(doc.status, "cancelled");

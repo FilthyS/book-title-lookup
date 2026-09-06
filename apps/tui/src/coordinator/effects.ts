@@ -17,16 +17,16 @@ export type Effect =
   | { readonly kind: "search"; readonly query: BookQuery }
   | { readonly kind: "resolve"; readonly target: ResolveTargetEffect }
   | {
-    readonly kind: "findTitles";
-    readonly workRef: ResolvedWorkRef;
-    readonly query: TitleQuery;
-  }
+      readonly kind: "findTitles";
+      readonly workRef: ResolvedWorkRef;
+      readonly query: TitleQuery;
+    }
   | { readonly kind: "abort"; readonly requestId: string }
   | { readonly kind: "exit"; readonly code: 0 | 130 };
 
 export type ResolveTargetEffect =
   | { readonly kind: "candidate"; readonly ref: string }
   | {
-    readonly kind: "externalReference";
-    readonly reference: ExternalReference;
-  };
+      readonly kind: "externalReference";
+      readonly reference: ExternalReference;
+    };

@@ -88,9 +88,8 @@ function makeSource(source: SourceId, index: CorpusIndex): EvidenceSource {
       }
       const table = index.search.get(source) ?? new Map();
       const status = table.get(normalizeTitleText(query.title));
-      const outcome = status === undefined
-        ? { kind: "no_record" as const }
-        : status;
+      const outcome =
+        status === undefined ? { kind: "no_record" as const } : status;
       return Promise.resolve(outcomeFrom(outcome) as SourceSearchOutcome);
     },
     fetch(
@@ -102,9 +101,8 @@ function makeSource(source: SourceId, index: CorpusIndex): EvidenceSource {
       }
       const table = index.fetches.get(source) ?? new Map();
       const status = table.get(refKey(reference));
-      const outcome = status === undefined
-        ? { kind: "no_record" as const }
-        : status;
+      const outcome =
+        status === undefined ? { kind: "no_record" as const } : status;
       return Promise.resolve(outcomeFrom(outcome) as SourceFetchOutcome);
     },
     expandEditions(

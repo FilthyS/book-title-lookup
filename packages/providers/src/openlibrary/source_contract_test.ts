@@ -94,7 +94,7 @@ Deno.test("ol service search maps Work docs to found candidates", async () => {
   assertEquals(outcome.status, "found");
   if (outcome.status === "found") {
     const values = outcome.candidates.map((c) =>
-      c.references.map((r) => `${r.namespace}:${r.value}`).join(",")
+      c.references.map((r) => `${r.namespace}:${r.value}`).join(","),
     );
     assert(
       values.some((refs) => refs.includes("openlibrary:work:OL43416865W")),
@@ -115,9 +115,9 @@ Deno.test("ol service resolve of the isolated work surfaces indirect evidence", 
     assertEquals(outcome.reason, "indirect_evidence");
     assert(
       outcome.candidates.some((c) =>
-        c.references.some((r) =>
-          r.namespace === "openlibrary:work" && r.value === "OL274505W"
-        )
+        c.references.some(
+          (r) => r.namespace === "openlibrary:work" && r.value === "OL274505W",
+        ),
       ),
     );
   }
@@ -156,14 +156,14 @@ Deno.test("ol service follows a JSON /type/redirect record to the canonical work
   assertEquals(outcome.status, "resolved");
   if (outcome.status === "resolved") {
     assert(
-      outcome.work.references.some((r) =>
-        r.namespace === "openlibrary:work" && r.value === "OL45883W"
+      outcome.work.references.some(
+        (r) => r.namespace === "openlibrary:work" && r.value === "OL45883W",
       ),
       "requested merged work reference preserved",
     );
     assert(
-      outcome.work.references.some((r) =>
-        r.namespace === "openlibrary:work" && r.value === "OL45804W"
+      outcome.work.references.some(
+        (r) => r.namespace === "openlibrary:work" && r.value === "OL45804W",
       ),
       "canonical work reference preserved",
     );

@@ -123,10 +123,7 @@ export class WikidataSource implements EvidenceSource {
   readonly #runtime: ProviderRuntime;
   readonly #mode: RuntimeRequestMode;
 
-  constructor(
-    runtime: ProviderRuntime,
-    options: WikidataSourceOptions = {},
-  ) {
+  constructor(runtime: ProviderRuntime, options: WikidataSourceOptions = {}) {
     this.#runtime = runtime;
     this.#mode = options.offline === true ? "offline" : "online";
   }
@@ -196,16 +193,16 @@ export class WikidataSource implements EvidenceSource {
     query: BookQuery,
   ): Promise<
     | {
-      readonly kind: "ok";
-      readonly ids: readonly string[];
-      readonly matched: readonly {
-        readonly id: string;
-        readonly aliases: readonly {
-          readonly text: string;
-          readonly language?: string;
+        readonly kind: "ok";
+        readonly ids: readonly string[];
+        readonly matched: readonly {
+          readonly id: string;
+          readonly aliases: readonly {
+            readonly text: string;
+            readonly language?: string;
+          }[];
         }[];
-      }[];
-    }
+      }
     | { readonly kind: "no_record" }
     | { readonly kind: "failed"; readonly failure: SourceFailure }
     | { readonly kind: "cancelled" }
@@ -214,16 +211,16 @@ export class WikidataSource implements EvidenceSource {
       language: string,
     ): Promise<
       | {
-        readonly kind: "ok";
-        readonly ids: string[];
-        readonly matched: {
-          readonly id: string;
-          readonly aliases: readonly {
-            readonly text: string;
-            readonly language?: string;
+          readonly kind: "ok";
+          readonly ids: string[];
+          readonly matched: {
+            readonly id: string;
+            readonly aliases: readonly {
+              readonly text: string;
+              readonly language?: string;
+            }[];
           }[];
-        }[];
-      }
+        }
       | { readonly kind: "cancelled" }
       | { readonly kind: "failed"; readonly failure: SourceFailure }
       | { readonly kind: "no_record" }
@@ -276,12 +273,12 @@ export class WikidataSource implements EvidenceSource {
     ids: readonly string[],
   ): Promise<
     | {
-      readonly kind: "ok";
-      readonly entities: readonly WdEntity[];
-      readonly finalUrl: string;
-      readonly fetchedAt: string;
-      readonly stale: boolean;
-    }
+        readonly kind: "ok";
+        readonly entities: readonly WdEntity[];
+        readonly finalUrl: string;
+        readonly fetchedAt: string;
+        readonly stale: boolean;
+      }
     | { readonly kind: "no_record" }
     | { readonly kind: "failed"; readonly failure: SourceFailure }
     | { readonly kind: "cancelled" }
@@ -471,24 +468,32 @@ export class WikidataSource implements EvidenceSource {
     if (workRead.kind === "failed") {
       return { status: "failed", failure: workRead.failure };
     }
-    const work = workRead.entities.find((entity) =>
-      entity.id === workReference.value
+    const work = workRead.entities.find(
+      (entity) => entity.id === workReference.value,
     );
-    const p747 = work === undefined ? [] : work.claims
-      .filter((claim) =>
-        claim.property === "P747" && claim.rank !== "deprecated"
-      )
-      .map((claim) => claim.value.kind === "item" ? claim.value.id : undefined)
-      .filter((id): id is string => id !== undefined);
+    const p747 =
+      work === undefined
+        ? []
+        : work.claims
+            .filter(
+              (claim) =>
+                claim.property === "P747" && claim.rank !== "deprecated",
+            )
+            .map((claim) =>
+              claim.value.kind === "item" ? claim.value.id : undefined,
+            )
+            .filter((id): id is string => id !== undefined);
     const warnings: SourceWarning[] = [
       failureToWarning(cause),
       ...(p747.length === 0
-        ? [{
-          source: "wikidata" as const,
-          code: "unavailable" as const,
-          references: [workReference],
-          details: { reason: "p747_incomplete" },
-        }]
+        ? [
+            {
+              source: "wikidata" as const,
+              code: "unavailable" as const,
+              references: [workReference],
+              details: { reason: "p747_incomplete" },
+            },
+          ]
         : []),
     ];
     if (p747.length === 0) {
@@ -629,9 +634,10 @@ function withRequestedReference(
   record: SourceRecord,
   requested: ExternalReference,
 ): SourceRecord {
-  const alreadyPresent = record.refs.some((reference) =>
-    reference.namespace === requested.namespace &&
-    reference.value === requested.value
+  const alreadyPresent = record.refs.some(
+    (reference) =>
+      reference.namespace === requested.namespace &&
+      reference.value === requested.value,
   );
   if (alreadyPresent) return record;
   return { ...record, refs: [requested, ...record.refs] };

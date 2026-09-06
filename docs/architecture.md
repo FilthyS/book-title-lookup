@@ -22,7 +22,7 @@ problems, not hidden behind a single supposedly canonical upstream record.
 
 ## Workspace
 
-The planned Deno workspace is:
+The Node.js TypeScript workspace is:
 
 ```text
 /
@@ -31,16 +31,15 @@ The planned Deno workspace is:
 ├── packages/
 │   ├── core/
 │   └── providers/
-├── distribution/
-│   ├── npm/
-│   │   ├── launcher/
-│   │   └── platform-package/
-│   └── scripts/
+├── scripts/
 ├── docs/
 │   └── adr/
+├── testing/
 ├── CONTEXT.md
+├── package.json
+├── package-lock.json
 ├── README.md
-└── deno.json
+└── tsconfig.json
 ```
 
 ### `packages/core`
@@ -87,11 +86,10 @@ The application package owns:
 
 It is the composition root and may import both Core and Providers.
 
-### `distribution`
+### `scripts`
 
-Distribution templates and scripts produce npm packages and standalone
-binaries. Generated packages live beneath `dist/` and are not workspace
-members.
+Build and verification scripts produce and inspect the bundled npm CLI.
+Generated artifacts live beneath `dist/` and are not source-tree members.
 
 ## Public Application Boundary
 
@@ -306,13 +304,12 @@ must demonstrate:
 5. terminal restoration after Ctrl+C and exceptions;
 6. compatibility with the pure state model;
 7. memory-backed or otherwise deterministic tests;
-8. least-privilege Deno operation;
-9. locked dependencies and `deno compile` compatibility;
+8. narrow runtime I/O through application seams;
+9. locked dependencies and Node.js compatibility;
 10. no lingering raw mode or hidden cursor.
 
-Candidate categories include a maintained Deno-native framework, an older
-full-widget Deno framework, and a thin project-owned ANSI renderer. Ink is not
-assumed compatible merely because Deno supports many npm packages.
+Candidate categories included full-widget frameworks and a thin project-owned
+ANSI renderer.
 
 The spike is throwaway. Only its conclusion and evidence enter production code.
 
@@ -412,35 +409,37 @@ be added without changing Core or the JSON schema.
 
 ### Distribution
 
-- compile all supported targets in CI;
-- run native smoke tests where runners exist;
-- test the npm launcher with simulated platform packages;
+- build the bundled JavaScript executable in CI;
+- install the actual npm tarball on each supported runner;
+- smoke the installed `book-title` command;
 - inspect npm tarballs before release;
-- verify launcher and binary versions match.
+- verify package and CLI versions match.
 
 ## Distribution
 
-The application is authored and tested for Deno. npm is a distribution channel,
-not a second application runtime.
+The application is authored, tested, and distributed for Node.js 22 or newer.
+npm is the installation channel for the same JavaScript artifact used in local
+builds.
 
-The root npm package contains a small Node launcher with a `book-title` binary.
-It selects a platform package from optional dependencies and starts the bundled
-Deno executable with inherited stdio and signals. It does not download code in
-`postinstall`.
+The npm package exposes `dist/book-title.js` as the `book-title` binary. esbuild
+bundles the application and runtime libraries into that file, so npm installs
+no production dependencies. The package has no optional platform packages,
+lifecycle install scripts, or downloaded binaries.
 
-Initial packages:
+Published shape:
 
 ```text
 book-title-lookup
-book-title-lookup-win32-x64
-book-title-lookup-linux-x64
-book-title-lookup-darwin-x64
-book-title-lookup-darwin-arm64
+├── dist/book-title.js
+├── dist/book-title.js.map
+├── README.md
+├── LICENSE
+└── THIRD_PARTY_NOTICES
 ```
 
-Standalone copies of the same binaries are attached to GitHub Releases. Source
-execution remains available through Deno. Unsupported platforms receive an
-actionable message rather than a runtime fallback.
+The same tarball is exercised on Windows, Linux, Intel macOS, and Apple Silicon
+macOS. Node.js provides platform portability; no OS/architecture selector is
+part of the application.
 
 Registry publishing is never part of a normal build and requires explicit human
 approval.

@@ -5,6 +5,10 @@ its full-screen TUI on a **thin project-owned ANSI renderer** (the
 `variant-a` pattern), not on Ink. The evidence and manual gates that back this
 decision are recorded here.
 
+ADR 0004 later moved the renderer's terminal adapter from Deno to Node.js. The
+thin-renderer decision, pure reducer boundary, and recorded spike evidence
+remain applicable; Deno-specific measurements below are historical.
+
 Inputs:
 
 - research baseline: `docs/research/deno-tui-candidates.md` (issue #3),
@@ -13,11 +17,12 @@ Inputs:
 
 ## 1. Decision
 
-Use a thin renderer that owns the small screen set directly on Deno core APIs:
+Use a thin renderer that owns the small screen set directly on runtime terminal
+APIs:
 
 - render frames from the pure reducer into memory and write ANSI to
-  `Deno.stdout` (alternate screen, cursor, clear, reset);
-- decode raw `Deno.stdin` bytes into key tokens with a stateful decoder;
+  `process.stdout` (alternate screen, cursor, clear, reset);
+- decode raw `process.stdin` bytes into key tokens with a stateful decoder;
 - measure text by grapheme cluster (`Intl.Segmenter` + a per-cluster width
   rule that special-cases ZWJ emoji) instead of a code-point width table;
 - keep terminal work in the driver so `update(state, message)` stays pure and

@@ -6,14 +6,17 @@
 
 export type PlatformKind = "windows" | "darwin" | "linux";
 
-export function detectPlatformKind(os: typeof Deno.build.os): PlatformKind {
+export function detectPlatformKind(os: string): PlatformKind {
   switch (os) {
+    case "win32":
     case "windows":
       return "windows";
     case "darwin":
       return "darwin";
-    default:
+    case "linux":
       return "linux";
+    default:
+      throw new RangeError(`unsupported platform: ${os}`);
   }
 }
 

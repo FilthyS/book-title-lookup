@@ -122,8 +122,9 @@ export function matchesLanguageRange(
   requestedRange: string,
 ): boolean {
   if (groupTag === "und" || groupTag === "mul") return false;
-  return groupTag === requestedRange ||
-    groupTag.startsWith(requestedRange + "-");
+  return (
+    groupTag === requestedRange || groupTag.startsWith(requestedRange + "-")
+  );
 }
 
 /**

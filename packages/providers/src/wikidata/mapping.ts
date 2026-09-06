@@ -139,9 +139,10 @@ export function titleClaimsFromEntity(
     if (text === "") continue;
     const monolingualLanguage = canonicalizeLang(statement.value.language);
     const qualifierLanguageTag = qualifierLanguage(statement);
-    const language = monolingualLanguage !== "und"
-      ? monolingualLanguage
-      : qualifierLanguageTag ?? "und";
+    const language =
+      monolingualLanguage !== "und"
+        ? monolingualLanguage
+        : (qualifierLanguageTag ?? "und");
     claims.push({
       type: "title",
       text,
@@ -260,9 +261,7 @@ function workLinkClaims(
   return out;
 }
 
-function publicationClaims(
-  entity: WdEntity,
-): Claim[] {
+function publicationClaims(entity: WdEntity): Claim[] {
   const out: Claim[] = [];
   for (const claim of entity.claims) {
     if (claim.property !== "P577") continue;
@@ -390,11 +389,13 @@ export function mapSparqlEditionRow(
       rank: "normal",
     },
     ...(row.isbn !== undefined && row.isbn !== ""
-      ? [{
-        type: "identifier" as const,
-        namespace: "isbn" as const,
-        value: canonicalizeIsbn(row.isbn),
-      }]
+      ? [
+          {
+            type: "identifier" as const,
+            namespace: "isbn" as const,
+            value: canonicalizeIsbn(row.isbn),
+          },
+        ]
       : []),
   ];
   return {

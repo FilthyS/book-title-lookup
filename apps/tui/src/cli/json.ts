@@ -21,9 +21,7 @@ import { CLI_JSON_SCHEMA_VERSION } from "../json/serialize.ts";
 import type { TerminalSummary } from "../coordinator/projections.ts";
 import type { LookupCommand } from "../coordinator/projections.ts";
 
-export function warningDocument(
-  warning: SourceWarning,
-): {
+export function warningDocument(warning: SourceWarning): {
   readonly source: string;
   readonly code: string;
   readonly references: object[];
@@ -33,15 +31,13 @@ export function warningDocument(
     source: warning.source,
     code: warning.code,
     references: warning.references.map((reference) =>
-      referenceDocument(reference)
+      referenceDocument(reference),
     ),
     details: sortRecord(warning.details ?? {}),
   };
 }
 
-export function failureDocument(
-  failure: SourceFailure,
-): {
+export function failureDocument(failure: SourceFailure): {
   readonly source: string;
   readonly code: string;
   readonly references: object[];
@@ -51,7 +47,7 @@ export function failureDocument(
     source: failure.source,
     code: failure.code,
     references: failure.references.map((reference) =>
-      referenceDocument(reference)
+      referenceDocument(reference),
     ),
     details: sortRecord(failure.details ?? {}),
   };
@@ -78,7 +74,7 @@ export function referenceDocument(reference: ExternalReference): {
 
 function referencesArray(references: readonly ExternalReference[]): object[] {
   return canonicalReferences(references).map((reference) =>
-    referenceDocument(reference)
+    referenceDocument(reference),
   );
 }
 
@@ -185,7 +181,7 @@ export function documentForSummary(
         ...base,
         status: "found",
         candidates: summary.candidates.map((candidate) =>
-          candidateDocument(candidate)
+          candidateDocument(candidate),
         ),
         warnings: warningsArray(summary.warnings),
       };
@@ -195,7 +191,7 @@ export function documentForSummary(
         status: "needs_choice",
         reason: summary.reason,
         candidates: summary.candidates.map((candidate) =>
-          candidateDocument(candidate)
+          candidateDocument(candidate),
         ),
         warnings: warningsArray(summary.warnings),
       };
@@ -225,16 +221,15 @@ export function documentForSummary(
     case "no_attested_titles":
       return {
         ...base,
-        status: summary.status === "titles_found"
-          ? "found"
-          : "no_attested_titles",
+        status:
+          summary.status === "titles_found" ? "found" : "no_attested_titles",
         work: workDocument(summary.work),
         targetLanguages: summary.targetLanguages,
         groups: summary.groups.map((group) =>
           groupDocument({
             ...group,
             attestations: group.attestations.map((a) => attestationDocument(a)),
-          })
+          }),
         ),
         warnings: warningsArray(summary.warnings),
       };

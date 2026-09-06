@@ -99,7 +99,8 @@ function isbnClaims(
 function originalTitleClaims(record: OlRecordValue): Claim[] {
   const out: Claim[] = [];
   if (
-    record.translationOf !== undefined && record.translationOf.trim() !== ""
+    record.translationOf !== undefined &&
+    record.translationOf.trim() !== ""
   ) {
     out.push({
       type: "original-title",

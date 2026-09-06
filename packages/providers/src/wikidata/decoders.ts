@@ -92,10 +92,10 @@ export type WdRank = "preferred" | "normal" | "deprecated";
 export type WdValue =
   | { readonly kind: "item"; readonly id: string }
   | {
-    readonly kind: "monolingual";
-    readonly text: string;
-    readonly language: string;
-  }
+      readonly kind: "monolingual";
+      readonly text: string;
+      readonly language: string;
+    }
   | { readonly kind: "string"; readonly value: string }
   | { readonly kind: "time"; readonly time: string }
   | { readonly kind: "quantity"; readonly amount: string }
@@ -184,9 +184,7 @@ function decodeStatement(
   const record = asRecord(raw);
   if (record === undefined) return undefined;
   const rank = asOptionalString(record.rank);
-  if (
-    rank !== "preferred" && rank !== "normal" && rank !== "deprecated"
-  ) {
+  if (rank !== "preferred" && rank !== "normal" && rank !== "deprecated") {
     return undefined;
   }
   const mainsnak = asRecord(record.mainsnak);
@@ -212,17 +210,14 @@ function decodeStatement(
       ? { id: asOptionalString(record.id) }
       : {}),
     rank,
-    value: datavalue === undefined
-      ? { kind: "unknown" }
-      : decodeValue(datavalue),
+    value:
+      datavalue === undefined ? { kind: "unknown" } : decodeValue(datavalue),
     qualifiers: qualifierList,
     references: referenceCount,
   };
 }
 
-function decodeMonolingualMap(
-  raw: unknown,
-): readonly WdMonolingualText[] {
+function decodeMonolingualMap(raw: unknown): readonly WdMonolingualText[] {
   const map = asRecord(raw);
   if (map === undefined) return [];
   const out: WdMonolingualText[] = [];

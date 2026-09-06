@@ -4,6 +4,7 @@
  * needs no ambient write grants outside the repository tree.
  */
 
+import { mkdir, rm } from "node:fs/promises";
 import {
   canonicalPath,
   joinPath,
@@ -14,7 +15,7 @@ import { systemRandomSource } from "./random.ts";
 import type { FileSystemSeam } from "./fs-seam.ts";
 
 export function hostPlatform(): PlatformKind {
-  return detectPlatformKind(Deno.build.os);
+  return detectPlatformKind(process.platform);
 }
 
 export function hostStyle(): "posix" | "windows" {
@@ -22,12 +23,12 @@ export function hostStyle(): "posix" | "windows" {
 }
 
 export function testBaseDir(): string {
-  return joinPath(hostStyle(), Deno.cwd(), ".tmp", "cache-tests");
+  return joinPath(hostStyle(), process.cwd(), ".tmp", "cache-tests");
 }
 
 export async function freshTestDir(label: string): Promise<string> {
   const base = testBaseDir();
-  await Deno.mkdir(base, { recursive: true });
+  await mkdir(base, { recursive: true });
   const dir = canonicalPath(
     joinPath(
       hostStyle(),
@@ -36,13 +37,13 @@ export async function freshTestDir(label: string): Promise<string> {
     ),
     hostStyle(),
   );
-  await Deno.mkdir(dir, { recursive: true });
+  await mkdir(dir, { recursive: true });
   return dir;
 }
 
 export async function removeTestDir(dir: string): Promise<void> {
   try {
-    await Deno.remove(dir, { recursive: true });
+    await rm(dir, { recursive: true });
   } catch {
     // Ignore cleanup failures; .tmp is git-ignored and removed next run.
   }

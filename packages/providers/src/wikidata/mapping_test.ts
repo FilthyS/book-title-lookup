@@ -61,23 +61,25 @@ Deno.test("wd mapping emits title claims only from P1476, never from labels", ()
   const record = mapWorkEntity(entity, CONTEXT);
   assertEquals(record.kind, "work");
   const titles = titleClaimsFromEntity(entity);
-  assertEquals(
-    titles.map((claim) => claim.text).sort(),
-    ["To Live", "活着"],
-  );
+  assertEquals(titles.map((claim) => claim.text).sort(), ["To Live", "活着"]);
   // Labels/aliases never add claims beyond the P1476 statements.
   const titleTexts = titles.map((claim) => claim.text);
   assertEquals(titleTexts.length, 2);
   assertEquals(
-    record.claims.some((claim) =>
-      claim.type === "title" && claim.language === "zh" && claim.text === "活着"
+    record.claims.some(
+      (claim) =>
+        claim.type === "title" &&
+        claim.language === "zh" &&
+        claim.text === "活着",
     ),
     true,
   );
   assertEquals(
-    record.claims.some((claim) =>
-      claim.type === "title" && claim.language === "en" &&
-      claim.text === "To Live"
+    record.claims.some(
+      (claim) =>
+        claim.type === "title" &&
+        claim.language === "en" &&
+        claim.text === "To Live",
     ),
     true,
   );
@@ -85,8 +87,8 @@ Deno.test("wd mapping emits title claims only from P1476, never from labels", ()
 
 Deno.test("wd mapping preserves the P648 openlibrary identity claim", () => {
   const record = mapWorkEntity(decodedEntity(Q151919_DOC), CONTEXT);
-  const identities = claimsOfType(record, "identifier").filter((claim) =>
-    claim.namespace === "openlibrary:work"
+  const identities = claimsOfType(record, "identifier").filter(
+    (claim) => claim.namespace === "openlibrary:work",
   );
   assertEquals(identities.length, 1);
   assertEquals(identities[0]?.value, "OL12181913W");
@@ -104,10 +106,11 @@ Deno.test("wd F3 label-only Edition maps with no title attestation claim", () =>
   assertEquals(titleClaims.length, 0);
   // Its Edition-to-Work relation and ISBN still map.
   assertEquals(
-    record.claims.some((claim) =>
-      claim.type === "work-link" &&
-      claim.reference.namespace === "wikidata:item" &&
-      claim.reference.value === "Q751348"
+    record.claims.some(
+      (claim) =>
+        claim.type === "work-link" &&
+        claim.reference.namespace === "wikidata:item" &&
+        claim.reference.value === "Q751348",
     ),
     true,
   );
@@ -115,8 +118,8 @@ Deno.test("wd F3 label-only Edition maps with no title attestation claim", () =>
 
 Deno.test("wd F6 deprecated/normal P648 pair yields a rank_conflict warning", () => {
   const record = mapWorkEntity(decodedEntity(Q208460_DOC), CONTEXT);
-  const identifiers = claimsOfType(record, "identifier").filter((claim) =>
-    claim.namespace === "openlibrary:work"
+  const identifiers = claimsOfType(record, "identifier").filter(
+    (claim) => claim.namespace === "openlibrary:work",
   );
   assertEquals(identifiers.length, 2);
   assertEquals(
@@ -136,13 +139,15 @@ Deno.test("wd mapping does not classify a translation-only item as edition", () 
   const edition = decodedEntity(Q125131191_DOC);
   const translationOnly: WdEntity = {
     ...edition,
-    claims: [{
-      property: "P31",
-      rank: "normal",
-      value: { kind: "item", id: "Q7553" },
-      qualifiers: [],
-      references: 0,
-    }],
+    claims: [
+      {
+        property: "P31",
+        rank: "normal",
+        value: { kind: "item", id: "Q7553" },
+        qualifiers: [],
+        references: 0,
+      },
+    ],
   };
   assertEquals(classifyEntity(translationOnly), "other");
   assertEquals(mapEntity(translationOnly, CONTEXT), undefined);

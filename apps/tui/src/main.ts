@@ -16,101 +16,82 @@ import {
   type TextWriter,
   type TuiDeps,
 } from "./cli/dispatch.ts";
-import {
-  systemEnvironment,
-} from "../../../packages/providers/src/platform/env.ts";
-import {
-  DenoFileSystemSeam,
-} from "../../../packages/providers/src/cache/fs-seam.ts";
-import {
-  detectPlatformKind,
-} from "../../../packages/providers/src/platform/platform.ts";
+import { systemEnvironment } from "../../../packages/providers/src/platform/env.ts";
+import { NodeFileSystemSeam } from "../../../packages/providers/src/cache/fs-seam.ts";
+import { detectPlatformKind } from "../../../packages/providers/src/platform/platform.ts";
 import { systemClock } from "../../../packages/providers/src/cache/clock.ts";
-import {
-  systemRandomSource,
-} from "../../../packages/providers/src/cache/random.ts";
+import { systemRandomSource } from "../../../packages/providers/src/cache/random.ts";
 import type { TerminalIo } from "./tui/terminal.ts";
 import { defaultTerminalInputEncoding } from "./tui/input-decoder.ts";
 
 const encoder = new TextEncoder();
 
-export function syncWriter(stream: {
-  writeSync(data: Uint8Array): number;
+export function streamWriter(stream: {
+  write(data: Uint8Array, callback: (error?: Error | null) => void): boolean;
 }): TextWriter {
   return {
     write(text: string): Promise<void> {
       const data = encoder.encode(text);
-      let offset = 0;
-      while (offset < data.length) {
-        const written = stream.writeSync(data.subarray(offset));
-        if (written <= 0 || written > data.length - offset) {
-          throw new Error("The output stream did not accept written data.");
-        }
-        offset += written;
-      }
-      return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        stream.write(data, (error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
     },
   };
 }
 
-function readChunk(): Promise<Uint8Array | null> {
-  const buffer = new Uint8Array(256);
-  return Deno.stdin.read(buffer).then((read) =>
-    read === null ? null : buffer.slice(0, read)
-  );
-}
-
-const TERMINAL_SIZE_POLL_MS = 100;
-
 function tuiIo(): TerminalIo {
-  const write = syncWriter(Deno.stdout);
+  const write = streamWriter(process.stdout);
+  const input = process.stdin[Symbol.asyncIterator]();
   const locale = Intl.DateTimeFormat().resolvedOptions().locale;
   return {
-    read: readChunk,
-    inputEncoding: defaultTerminalInputEncoding(Deno.build.os, locale),
+    read: async (): Promise<Uint8Array | null> => {
+      const next = await input.next();
+      if (next.done) return null;
+      return typeof next.value === "string"
+        ? encoder.encode(next.value)
+        : new Uint8Array(next.value);
+    },
+    inputEncoding: defaultTerminalInputEncoding(
+      process.platform === "win32" ? "windows" : process.platform,
+      locale,
+    ),
     write: (text: string) => write.write(text),
     setRawMode: (raw: boolean): Promise<void> => {
-      Deno.stdin.setRaw(raw);
+      if (typeof process.stdin.setRawMode !== "function") {
+        throw new Error("stdin does not support raw terminal mode");
+      }
+      process.stdin.setRawMode(raw);
       return Promise.resolve();
     },
-    size: () => Deno.consoleSize(),
-    watchSize: (listener: () => void): () => void => {
-      let previous = Deno.consoleSize();
-      const timer = setInterval(() => {
-        const next = Deno.consoleSize();
-        if (
-          next.columns === previous.columns &&
-          next.rows === previous.rows
-        ) {
-          return;
-        }
-        previous = next;
-        listener();
-      }, TERMINAL_SIZE_POLL_MS);
-      return () => clearInterval(timer);
+    size: () => ({
+      columns: process.stdout.columns ?? 80,
+      rows: process.stdout.rows ?? 24,
+    }),
+    watchSize: (listener: () => void): (() => void) => {
+      process.stdout.on("resize", listener);
+      return () => process.stdout.off("resize", listener);
     },
   };
 }
 
 function tuiDeps(): TuiDeps | undefined {
-  let stdinIsTty = false;
-  let stdoutIsTty = false;
-  try {
-    stdinIsTty = Deno.stdin.isTerminal();
-    stdoutIsTty = Deno.stdout.isTerminal();
-  } catch {
-    // Fall through with the flags false: the terminal is never acquired.
-  }
+  const stdinIsTty = process.stdin.isTTY === true;
+  const stdoutIsTty = process.stdout.isTTY === true;
   return { stdinIsTty, stdoutIsTty, io: tuiIo() };
 }
 
-async function entry(): Promise<void> {
+export async function entry(
+  argv: readonly string[] = process.argv.slice(2),
+): Promise<number> {
   const controller = new AbortController();
   const onSignal = (): void => controller.abort();
-  const signals: Deno.Signal[] = ["SIGINT", "SIGTERM"];
+  const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
   for (const signal of signals) {
     try {
-      Deno.addSignalListener(signal, onSignal);
+      process.on(signal, onSignal);
     } catch {
       // A platform may not support the listener; the abort controller stays
       // available for in-process cancellation.
@@ -118,29 +99,26 @@ async function entry(): Promise<void> {
   }
 
   const deps: CliDeps = {
-    stdout: syncWriter(Deno.stdout),
-    stderr: syncWriter(Deno.stderr),
+    stdout: streamWriter(process.stdout),
+    stderr: streamWriter(process.stderr),
     env: systemEnvironment,
-    fs: new DenoFileSystemSeam(),
-    platform: detectPlatformKind(Deno.build.os),
+    fs: new NodeFileSystemSeam(),
+    platform: detectPlatformKind(process.platform),
     clock: systemClock,
     random: systemRandomSource,
     signal: controller.signal,
     tui: tuiDeps(),
   };
 
-  const exitCode = await runCli(Deno.args, deps);
-
-  for (const signal of signals) {
-    try {
-      Deno.removeSignalListener(signal, onSignal);
-    } catch {
-      // Ignore removal failures; the process is about to exit.
+  try {
+    return await runCli(argv, deps);
+  } finally {
+    for (const signal of signals) {
+      try {
+        process.off(signal, onSignal);
+      } catch {
+        // Ignore removal failures; the process is about to exit.
+      }
     }
   }
-  Deno.exit(exitCode);
-}
-
-if (import.meta.main) {
-  await entry();
 }

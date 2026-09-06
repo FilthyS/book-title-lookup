@@ -7,12 +7,8 @@
  */
 
 import type { ResolvedSettings } from "../settings/resolver.ts";
-import type {
-  CacheEntrySummary,
-} from "../../../../packages/providers/src/cache/store.ts";
-import type {
-  RawResponseEnvelopeV1,
-} from "../../../../packages/providers/src/cache/envelope.ts";
+import type { CacheEntrySummary } from "../../../../packages/providers/src/cache/store.ts";
+import type { RawResponseEnvelopeV1 } from "../../../../packages/providers/src/cache/envelope.ts";
 import { CLI_JSON_SCHEMA_VERSION } from "./serialize.ts";
 
 export interface ConfigShowDocument {

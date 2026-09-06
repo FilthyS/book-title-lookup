@@ -3,7 +3,7 @@ import { computeCacheKey } from "./key.ts";
 import { createEnvelope, parseEnvelope } from "./envelope.ts";
 import { FileEntryStore } from "./file-entry-store.ts";
 import {
-  DenoFileSystemSeam,
+  NodeFileSystemSeam,
   type FileSystemSeam,
   type FsResult,
 } from "./fs-seam.ts";
@@ -35,7 +35,7 @@ function makeStore(
   return new FileEntryStore({
     cacheRoot: root,
     clock,
-    fs: options.fs ?? new DenoFileSystemSeam(),
+    fs: options.fs ?? new NodeFileSystemSeam(),
     random: systemRandomSource,
     decoderSchemaVersions: { openlibrary: 1, wikidata: 1 },
     platform: options.platform ?? hostPlatform(),
@@ -60,8 +60,8 @@ async function seed(
   clock: FixedClock,
   options: SeedOptions = {},
 ): Promise<CacheKey> {
-  const url = options.url ??
-    "https://openlibrary.org/works/OL274505W.json?fields=title";
+  const url =
+    options.url ?? "https://openlibrary.org/works/OL274505W.json?fields=title";
   const key = await computeCacheKey(options.provider ?? "openlibrary", url);
   const envelope = createEnvelope({
     key,
@@ -184,7 +184,7 @@ Deno.test("cache/store fresh negative answers within TTL", async () => {
 Deno.test("cache/store corrupt files are quarantined and then behave as miss", async () => {
   await withFreshDir("corrupt", async (root) => {
     const clock = new FixedClock(FIXED);
-    const fs = new DenoFileSystemSeam();
+    const fs = new NodeFileSystemSeam();
     const store = makeStore(root, clock, { fs });
     const key = await seed(store, clock);
     const path = v1Path(root, key.digest);
@@ -218,7 +218,7 @@ Deno.test("cache/store decoder schema bump is corruption", async () => {
     const v2Store = new FileEntryStore({
       cacheRoot: root,
       clock,
-      fs: new DenoFileSystemSeam(),
+      fs: new NodeFileSystemSeam(),
       random: systemRandomSource,
       decoderSchemaVersions: { openlibrary: 2, wikidata: 2 },
       platform: hostPlatform(),
@@ -269,8 +269,7 @@ Deno.test("cache/store list is deterministic and sorted by digest", async () => 
     });
     await seed(store, clock, {
       provider: "wikidata",
-      url:
-        "https://www.wikidata.org/w/api.php?action=wbsearchentities&search=one",
+      url: "https://www.wikidata.org/w/api.php?action=wbsearchentities&search=one",
     });
     const first = await store.list();
     const second = await store.list();
@@ -311,7 +310,7 @@ Deno.test("cache/store show returns the envelope and a not_found for unknown dig
 Deno.test("cache/store clear removes live, quarantined, and temp files and counts bytes", async () => {
   await withFreshDir("clear", async (root) => {
     const clock = new FixedClock(FIXED);
-    const fs = new DenoFileSystemSeam();
+    const fs = new NodeFileSystemSeam();
     const store = makeStore(root, clock, { fs });
     const key1 = await seed(store, clock, {
       url: "https://openlibrary.org/search.json?q=a",
@@ -358,7 +357,7 @@ Deno.test("cache/store reclaim removes old temp litter and keeps fresh temps", a
   await withFreshDir("reclaim", async (root) => {
     const now = new Date();
     const clock = new FixedClock(now.toISOString());
-    const fs = new DenoFileSystemSeam();
+    const fs = new NodeFileSystemSeam();
     const store = makeStore(root, clock, { fs });
     await seed(store, clock);
     const v1 = joinPath(hostStyle(), root, "v1");
@@ -403,7 +402,7 @@ Deno.test("cache/store atomic writes leave whole entries for concurrent readers"
     const url = "https://openlibrary.org/search.json?q=atomic";
     const key = await computeCacheKey("openlibrary", url);
     const bodies = ["alpha", "beta", "gamma"].map((t) =>
-      utf8.encode(`{"tag":"${t}"}`)
+      utf8.encode(`{"tag":"${t}"}`),
     );
     const envelopes = bodies.map((body) =>
       createEnvelope({
@@ -414,7 +413,7 @@ Deno.test("cache/store atomic writes leave whole entries for concurrent readers"
         freshnessClass: "search",
         negative: false,
         fetchedAt: clock.now(),
-      })
+      }),
     );
     const writes = envelopes.map((envelope) => store.write(key, envelope));
     const results = await Promise.all(writes);
@@ -463,7 +462,7 @@ class ThrowingRenameFs implements FileSystemSeam {
 Deno.test("cache/store crash before rename leaves the old entry and reclaimable temp", async () => {
   await withFreshDir("crash", async (root) => {
     const clock = new FixedClock(new Date().toISOString());
-    const realFs = new DenoFileSystemSeam();
+    const realFs = new NodeFileSystemSeam();
     const url = "https://openlibrary.org/search.json?q=crash";
     const key = await computeCacheKey("openlibrary", url);
     const first = createEnvelope({
@@ -521,7 +520,10 @@ Deno.test("cache/store crash before rename leaves the old entry and reclaimable 
 
 class TransientRenameFs implements FileSystemSeam {
   #failuresRemaining: number;
-  constructor(readonly inner: FileSystemSeam, failures: number) {
+  constructor(
+    readonly inner: FileSystemSeam,
+    failures: number,
+  ) {
     this.#failuresRemaining = failures;
   }
   mkdir(
@@ -561,7 +563,7 @@ class TransientRenameFs implements FileSystemSeam {
 Deno.test("cache/store Windows rename contention retries and succeeds", async () => {
   await withFreshDir("contention", async (root) => {
     const clock = new FixedClock(FIXED);
-    const fs = new TransientRenameFs(new DenoFileSystemSeam(), 2);
+    const fs = new TransientRenameFs(new NodeFileSystemSeam(), 2);
     const store = makeStore(root, clock, { fs, platform: "windows" });
     const url = "https://openlibrary.org/search.json?q=contention";
     const key = await computeCacheKey("openlibrary", url);
@@ -584,7 +586,7 @@ Deno.test("cache/store Windows rename contention retries and succeeds", async ()
 Deno.test("cache/store permission-denied paths map to typed failures", async () => {
   await withFreshDir("deny", async (root) => {
     const clock = new FixedClock(FIXED);
-    const base = new DenoFileSystemSeam();
+    const base = new NodeFileSystemSeam();
     const fs = new DenyFs(base);
     const store = makeStore(root, clock, { fs });
     const key = await computeCacheKey(
@@ -678,7 +680,7 @@ Deno.test("cache/store cancellation is a typed outcome, never a book result", as
 Deno.test("cache/store file layout matches the v1 schema", async () => {
   await withFreshDir("layout", async (root) => {
     const clock = new FixedClock(FIXED);
-    const fs = new DenoFileSystemSeam();
+    const fs = new NodeFileSystemSeam();
     const store = makeStore(root, clock, { fs });
     const key = await seed(store, clock);
     const livePath = v1Path(root, key.digest);

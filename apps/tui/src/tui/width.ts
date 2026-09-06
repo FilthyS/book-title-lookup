@@ -1,14 +1,11 @@
 // Display-width measurement for the thin renderer (promoted from the issue #9
 // spike evidence; docs/research/deno-tui-candidates.md section 5).
 //
-// A code-point East Asian width table (what `@std/cli/unicode-width` and
-// Cliffy share) over-counts ZWJ emoji (8 columns for a family that renders in
-// 2). Text is therefore segmented into graphemes first and ZWJ emoji clusters
-// are special-cased to one wide glyph. Combining marks measure 0 and a
-// regional-indicator pair measures 2 in the std table, so they are handled by
-// measuring each cluster with that table.
+// Text is segmented into graphemes before width is measured so truncation can
+// never split a user-perceived character. `string-width` handles East Asian
+// width, combining marks, and emoji clusters for supported Node releases.
 
-import { unicodeWidth } from "@std/cli/unicode-width";
+import stringWidth from "string-width";
 
 export interface Cluster {
   readonly text: string;
@@ -30,10 +27,7 @@ export function splitGraphemes(text: string): readonly string[] {
 
 /** Column width of one grapheme cluster as a modern terminal renders it. */
 export function clusterWidth(cluster: string): number {
-  if (cluster.includes(String.fromCodePoint(ZWJ))) {
-    return 2;
-  }
-  return unicodeWidth(cluster);
+  return cluster.includes(String.fromCodePoint(ZWJ)) ? 2 : stringWidth(cluster);
 }
 
 /** Split text into graphemes with their display widths. */

@@ -214,16 +214,18 @@ Deno.test("R14/R15 title outcomes reach titles and can start a new search", () =
       requestId: "3",
       outcome: {
         status: "no_attested_titles",
-        groups: [{
-          language: "und",
-          title: "百年孤独",
-          subtitle: null,
-          level: "ambiguous",
-          recommended: false,
-          satisfiesRequest: false,
-          originalTitle: false,
-          attestations: [],
-        }],
+        groups: [
+          {
+            language: "und",
+            title: "百年孤独",
+            subtitle: null,
+            level: "ambiguous",
+            recommended: false,
+            satisfiesRequest: false,
+            originalTitle: false,
+            attestations: [],
+          },
+        ],
         warnings: [],
       },
     },

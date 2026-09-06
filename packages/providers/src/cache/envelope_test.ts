@@ -31,7 +31,7 @@ async function makeKey(digest?: string): Promise<CacheKey> {
   };
   return {
     algorithm: "sha256",
-    digest: digest ?? await digestForIdentity(identity),
+    digest: digest ?? (await digestForIdentity(identity)),
     identity,
   };
 }

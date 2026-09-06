@@ -1,16 +1,14 @@
 import { assertEquals } from "@std/assert";
 import { MemoryEnvironment } from "../../../../packages/providers/src/platform/env.ts";
-import {
-  APP_DIRECTORY_NAME,
-} from "../../../../packages/providers/src/platform/platform.ts";
+import { APP_DIRECTORY_NAME } from "../../../../packages/providers/src/platform/platform.ts";
 import { joinPath } from "../../../../packages/providers/src/platform/paths.ts";
 import {
-  DenoFileSystemSeam,
+  NodeFileSystemSeam,
   type FileSystemSeam,
 } from "../../../../packages/providers/src/cache/fs-seam.ts";
 import { resolveSettings, type SettingsInput } from "./resolver.ts";
 
-class NoConfigFs extends DenoFileSystemSeam {
+class NoConfigFs extends NodeFileSystemSeam {
   override readTextFile(_path: string) {
     return Promise.resolve({ ok: false as const, error: "not_found" as const });
   }
@@ -175,16 +173,14 @@ Deno.test("settings relative cacheRoot overrides are invalid_config", async () =
 });
 
 Deno.test("settings invalid config file yields invalid_config, never a book outcome", async () => {
-  for (
-    const content of [
-      "not json",
-      JSON.stringify({ schemaVersion: "config.v9" }),
-      JSON.stringify({ schemaVersion: "config.v1", unknownKey: true }),
-      JSON.stringify({ schemaVersion: "config.v1", offline: "yes" }),
-      JSON.stringify({ schemaVersion: "config.v1", logLevel: "loud" }),
-      JSON.stringify({ schemaVersion: "config.v1", contact: 7 }),
-    ]
-  ) {
+  for (const content of [
+    "not json",
+    JSON.stringify({ schemaVersion: "config.v9" }),
+    JSON.stringify({ schemaVersion: "config.v1", unknownKey: true }),
+    JSON.stringify({ schemaVersion: "config.v1", offline: "yes" }),
+    JSON.stringify({ schemaVersion: "config.v1", logLevel: "loud" }),
+    JSON.stringify({ schemaVersion: "config.v1", contact: 7 }),
+  ]) {
     const fs = new WindowsMemoryFs();
     fs.files.set(windowsConfigPath(WINDOWS_APPDATA), content);
     const result = await resolveSettings(

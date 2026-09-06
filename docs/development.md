@@ -6,11 +6,17 @@ shortest path to using it.
 
 ## Prerequisites
 
-- Deno 2.9 or newer
+- Node.js 22 or newer
+- npm 10 or newer
 - Git
-- Node.js 18 or newer only for npm launcher tests and package inspection
 
-The dependency lockfile is committed. The Deno workspace contains:
+Install the exact development dependency graph from the committed lockfile:
+
+```console
+npm ci
+```
+
+The TypeScript source tree contains:
 
 ```text
 apps/tui
@@ -26,28 +32,27 @@ cases. Providers own catalog adapters, HTTP runtime policy, and caching.
 Start the interactive TUI:
 
 ```console
-deno task start
+npm start
 ```
 
-The `start` task grants only the application environment allowlist and catalog
-hosts. Filesystem access is granted because the cache and configuration roots
-are resolved for the current user at runtime; application seams constrain the
-paths actually used.
+Node.js is the only runtime. The application reads the closed environment
+allowlist below and application seams constrain the cache and configuration
+paths it uses.
 
 Run a one-shot lookup:
 
 ```console
-deno task start search --title 百年孤独 --json
+npm start -- search --title 百年孤独 --json
 ```
 
 Inspect maintenance commands:
 
 ```console
-deno task cli:help
-deno task start config show
-deno task start cache list
-deno task start cache show <digest>
-deno task start cache clear
+npm run cli:help
+npm start -- config show
+npm start -- cache list
+npm start -- cache show <digest>
+npm start -- cache clear
 ```
 
 ### Runtime settings
@@ -69,21 +74,25 @@ requests.
 ## Validate changes
 
 ```console
-deno task fmt
-deno task fmt:check
-deno task lint
-deno task check
-deno task test
-deno task test:launcher
+npm run fmt
+npm run fmt:check
+npm run lint
+npm run check
+npm test
+npm run build
+npm run verify:package
+npm run smoke:install
 ```
 
-The launcher contract suite is separate from the fast test task because it
-invokes Node and performs a one-off Deno compile.
+`verify:package` inspects the exact `npm pack --dry-run` file list and rejects
+runtime dependencies, optional platform packages, and install lifecycle
+scripts. `smoke:install` creates a real tarball, installs it into a temporary
+prefix, and exercises `book-title --version`, `--help`, and non-TTY startup.
 
 The coordinator-authorized live smoke test contacts Open Library:
 
 ```console
-deno task test:live-smoke
+npm run test:live-smoke
 ```
 
 ## TUI layouts
@@ -97,53 +106,43 @@ Press `Tab` on either screen to switch layouts for the current session. Both
 layouts scroll around the active selection when the result set is larger than
 the available terminal space.
 
-## Build a native binary
+## Build the Node.js CLI
 
-Compile for the current supported host:
+Build the self-contained JavaScript executable:
 
 ```console
-deno task build
+npm run build
 ```
 
-The binary is written under:
+The build bundles application code and runtime libraries into:
 
 ```text
-dist/binaries/<platform-package>/<binary-file>
+dist/book-title.js
+dist/book-title.js.map
 ```
 
-Compile an explicit supported target:
+The artifact requires Node.js 22 or newer and runs unchanged on Windows, Linux,
+macOS, and other Node-supported platforms:
 
 ```console
-deno run --allow-run=deno --allow-read --allow-write \
-  distribution/scripts/compile.ts --target <deno-target>
+node dist/book-title.js --version
 ```
 
-Supported Deno targets:
+## Inspect the npm artifact
 
-- `x86_64-pc-windows-msvc`
-- `x86_64-unknown-linux-gnu`
-- `x86_64-apple-darwin`
-- `aarch64-apple-darwin`
-
-## Build release-shaped npm artifacts
-
-These commands only build and verify local artifacts. They cannot publish:
+These commands only build and verify a local artifact. They cannot publish:
 
 ```console
-deno run --allow-env=BOOK_TITLE_RELEASE_VERSION --allow-run=npm,git \
-  --allow-read --allow-write distribution/scripts/pack.ts --dry-run --stubs
-
-deno run --allow-read --allow-write distribution/scripts/manifest.ts
-
-deno run --allow-run=npm --allow-read --allow-write \
-  distribution/scripts/verify.ts
+npm run build
+npm run verify:package
+npm pack
 ```
 
-Generated package trees and tarballs are written under `dist/`. Version
-selection uses `BOOK_TITLE_RELEASE_VERSION`, then an exact `v<version>` tag on
-`HEAD`, then the development version.
+The tarball contains `package.json`, the two `dist/` artifacts, project
+documentation, and license notices. It contains no platform-specific packages,
+runtime dependencies, or lifecycle scripts. npm links the `book-title` command
+to `dist/book-title.js`.
 
-Publishing is a separate, explicitly authorized operation and is not
-implemented by these scripts or tasks. The package topology, target matrix,
-launcher contract, and release gates are specified in
-[npm release topology](./design/npm-release-topology.md).
+Publishing remains a separate, explicitly authorized operation. The runtime
+migration decision is recorded in
+[ADR 0004](./adr/0004-use-node-as-the-only-runtime.md).

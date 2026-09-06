@@ -20,9 +20,7 @@ import {
 const UA =
   "book-title-lookup/0.1 (+https://github.com/FilthyS/book-title-lookup)";
 
-function baseConfig(
-  overrides: Partial<RuntimeConfig> = {},
-): RuntimeConfig {
+function baseConfig(overrides: Partial<RuntimeConfig> = {}): RuntimeConfig {
   return {
     provider: "openlibrary",
     userAgent: UA,
@@ -111,8 +109,8 @@ class ControlledDeadlineEffects implements RuntimeEffects {
   advance(ms: number): void {
     this.#nowMs += ms;
     const due = this.#sleepers.filter((sleeper) => sleeper.at <= this.#nowMs);
-    this.#sleepers = this.#sleepers.filter((sleeper) =>
-      sleeper.at > this.#nowMs
+    this.#sleepers = this.#sleepers.filter(
+      (sleeper) => sleeper.at > this.#nowMs,
     );
     for (const sleeper of due) sleeper.finish();
   }
@@ -150,10 +148,9 @@ Deno.test("runtime ok fetch returns data, meta, and writes the cache", async () 
       "https://openlibrary.org/search.json": { status: 200, body: "doc" },
     },
   });
-  const outcome = await runtime.execute(planFor(
-    "https://openlibrary.org/search.json",
-    "search",
-  ));
+  const outcome = await runtime.execute(
+    planFor("https://openlibrary.org/search.json", "search"),
+  );
   assertEquals(outcome.kind, "ok");
   if (outcome.kind === "ok") {
     assertEquals(outcome.data, "doc");
@@ -241,10 +238,9 @@ Deno.test("runtime retryable 5xx retries at most twice then succeeds", async () 
       ],
     },
   });
-  const outcome = await runtime.execute(planFor(
-    "https://openlibrary.org/detail.json",
-    "detail",
-  ));
+  const outcome = await runtime.execute(
+    planFor("https://openlibrary.org/detail.json", "detail"),
+  );
   assertEquals(outcome.kind, "ok");
   if (outcome.kind === "ok") assertEquals(outcome.data, "up");
   assertEquals(recorder.count("https://openlibrary.org/detail.json"), 3);
@@ -260,9 +256,9 @@ Deno.test("runtime exhausted retries fail as unavailable", async () => {
       ],
     },
   });
-  const outcome = await runtime.execute(planFor(
-    "https://openlibrary.org/detail.json",
-  ));
+  const outcome = await runtime.execute(
+    planFor("https://openlibrary.org/detail.json"),
+  );
   assertEquals(outcome.kind, "source_failure");
   if (outcome.kind === "source_failure") {
     assertEquals(outcome.failure.code, "unavailable");
@@ -282,9 +278,9 @@ Deno.test("runtime 429 honors Retry-After", async () => {
       ],
     },
   });
-  const outcome = await runtime.execute(planFor(
-    "https://openlibrary.org/search.json",
-  ));
+  const outcome = await runtime.execute(
+    planFor("https://openlibrary.org/search.json"),
+  );
   assertEquals(outcome.kind, "ok");
   // The Retry-After wait replaced jittered backoff.
   assertEquals(effects.delays.includes(5000), true);
@@ -297,9 +293,9 @@ Deno.test("runtime 429 without Retry-After fails rate_limited without retry", as
       "https://openlibrary.org/search.json": { status: 429, body: "slow" },
     },
   });
-  const outcome = await runtime.execute(planFor(
-    "https://openlibrary.org/search.json",
-  ));
+  const outcome = await runtime.execute(
+    planFor("https://openlibrary.org/search.json"),
+  );
   assertEquals(outcome.kind, "source_failure");
   if (outcome.kind === "source_failure") {
     assertEquals(outcome.failure.code, "rate_limited");
@@ -320,10 +316,9 @@ Deno.test("runtime follows an allowlisted redirect and preserves both URLs", asy
       },
     },
   });
-  const outcome = await runtime.execute(planFor(
-    "https://openlibrary.org/isbn/1.json",
-    "detail",
-  ));
+  const outcome = await runtime.execute(
+    planFor("https://openlibrary.org/isbn/1.json", "detail"),
+  );
   assertEquals(outcome.kind, "ok");
   if (outcome.kind === "ok") {
     assertEquals(outcome.data, "edition");
@@ -432,9 +427,7 @@ Deno.test("runtime source budget aborts an in-flight fetch as timeout", async ()
     }),
   );
 
-  const pending = runtime.execute(
-    planFor("https://openlibrary.org/slow.json"),
-  );
+  const pending = runtime.execute(planFor("https://openlibrary.org/slow.json"));
   await fetchStarted;
   effects.advance(10);
   const outcome = await pending;
@@ -469,19 +462,20 @@ Deno.test("runtime source budget expires while queued for a slot", async () => {
     }),
   );
 
-  const first = runtime.execute(
-    planFor("https://openlibrary.org/first.json"),
-    { signal: firstController.signal, sourceBudgetMs: 100 },
-  );
+  const first = runtime.execute(planFor("https://openlibrary.org/first.json"), {
+    signal: firstController.signal,
+    sourceBudgetMs: 100,
+  });
   await firstFetchStarted;
   let settledAtDeadline = false;
-  const second = runtime.execute(
-    planFor("https://openlibrary.org/second.json"),
-    { sourceBudgetMs: 10 },
-  ).then((outcome) => {
-    settledAtDeadline = true;
-    return outcome;
-  });
+  const second = runtime
+    .execute(planFor("https://openlibrary.org/second.json"), {
+      sourceBudgetMs: 10,
+    })
+    .then((outcome) => {
+      settledAtDeadline = true;
+      return outcome;
+    });
   while (effects.pendingDelays < 2) await Promise.resolve();
 
   effects.advance(10);
@@ -601,9 +595,10 @@ Deno.test("runtime corrupt entry quarantines online (warn) and refetches", async
   assertEquals(second.kind, "ok");
   if (second.kind === "ok") {
     assertEquals(
-      second.meta.warnings.some((warning) =>
-        warning.code === "decode" &&
-        warning.details?.reason === "corrupt_cache_entry"
+      second.meta.warnings.some(
+        (warning) =>
+          warning.code === "decode" &&
+          warning.details?.reason === "corrupt_cache_entry",
       ),
       true,
     );
@@ -695,10 +690,9 @@ Deno.test("runtime never caches 422 validation responses", async () => {
       },
     },
   });
-  const outcome = await runtime.execute(planFor(
-    "https://openlibrary.org/search.json",
-    "search",
-  ));
+  const outcome = await runtime.execute(
+    planFor("https://openlibrary.org/search.json", "search"),
+  );
   assertEquals(outcome.kind, "source_failure");
   assertEquals(cache.entries.size, 0);
   assertEquals(recorder.total, 1);

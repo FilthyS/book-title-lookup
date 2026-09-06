@@ -30,10 +30,10 @@ export interface CacheReadOptions {
 export type CacheReadOutcome =
   | { readonly status: "hit_fresh"; readonly envelope: RawResponseEnvelopeV1 }
   | {
-    readonly status: "hit_stale";
-    readonly envelope: RawResponseEnvelopeV1;
-    readonly staleSince: Instant;
-  }
+      readonly status: "hit_stale";
+      readonly envelope: RawResponseEnvelopeV1;
+      readonly staleSince: Instant;
+    }
   | { readonly status: "miss" }
   | { readonly status: "corrupt"; readonly quarantinedTo?: string }
   | { readonly status: "permission_denied"; readonly path: string }
@@ -80,10 +80,10 @@ export type CacheShowOutcome =
 
 export type CacheClearOutcome =
   | {
-    readonly status: "ok";
-    readonly removedEntries: number;
-    readonly removedBytes: number;
-  }
+      readonly status: "ok";
+      readonly removedEntries: number;
+      readonly removedBytes: number;
+    }
   | { readonly status: "permission_denied"; readonly path: string }
   | { readonly status: "unsupported_environment" }
   | { readonly status: "cancelled" };
@@ -112,10 +112,10 @@ export interface ResponseCache {
     digest: string,
     options?: { readonly signal?: AbortSignal },
   ): Promise<CacheRemoveOutcome>;
-  clear(
-    options?: { readonly signal?: AbortSignal },
-  ): Promise<CacheClearOutcome>;
-  reclaim(
-    options?: { readonly signal?: AbortSignal },
-  ): Promise<CacheReclaimOutcome>;
+  clear(options?: {
+    readonly signal?: AbortSignal;
+  }): Promise<CacheClearOutcome>;
+  reclaim(options?: {
+    readonly signal?: AbortSignal;
+  }): Promise<CacheReclaimOutcome>;
 }

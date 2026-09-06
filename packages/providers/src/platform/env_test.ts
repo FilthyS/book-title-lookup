@@ -7,18 +7,21 @@ import {
 } from "./env.ts";
 
 Deno.test("platform/env ENV_ALLOWLIST is the closed issue #10 list", () => {
-  assertEquals([...ENV_ALLOWLIST], [
-    "BOOK_TITLE_CONTACT",
-    "BOOK_TITLE_CACHE_DIR",
-    "BOOK_TITLE_OFFLINE",
-    "BOOK_TITLE_LOG_LEVEL",
-    "HOME",
-    "XDG_CONFIG_HOME",
-    "XDG_CACHE_HOME",
-    "LOCALAPPDATA",
-    "APPDATA",
-    "USERPROFILE",
-  ]);
+  assertEquals(
+    [...ENV_ALLOWLIST],
+    [
+      "BOOK_TITLE_CONTACT",
+      "BOOK_TITLE_CACHE_DIR",
+      "BOOK_TITLE_OFFLINE",
+      "BOOK_TITLE_LOG_LEVEL",
+      "HOME",
+      "XDG_CONFIG_HOME",
+      "XDG_CACHE_HOME",
+      "LOCALAPPDATA",
+      "APPDATA",
+      "USERPROFILE",
+    ],
+  );
 });
 
 Deno.test("platform/env allowlist membership", () => {
@@ -31,10 +34,7 @@ Deno.test("platform/env allowlist membership", () => {
 
 Deno.test("platform/env readers expose typed results, never toObject()", () => {
   const present = new MemoryEnvironment({ BOOK_TITLE_CACHE_DIR: "/cache" });
-  const denied = new MemoryEnvironment(
-    {},
-    { deny: ["BOOK_TITLE_CACHE_DIR"] },
-  );
+  const denied = new MemoryEnvironment({}, { deny: ["BOOK_TITLE_CACHE_DIR"] });
   assertEquals(present.read("BOOK_TITLE_CACHE_DIR"), {
     ok: true,
     value: "/cache",

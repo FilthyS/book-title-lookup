@@ -1,5 +1,10 @@
 # Cache and Configuration Contract
 
+> [!NOTE]
+> ADR 0004 supersedes this document's Deno-specific API and permission
+> mechanics. Its cache schema, path constraints, atomicity, configuration, and
+> testability contracts remain in force through the Node.js runtime seams.
+
 Decision ticket: [GitHub issue #10 — Choose the cache and configuration
 seam](https://github.com/FilthyS/book-title-lookup/issues/10)
 Status: accepted baseline for implementation

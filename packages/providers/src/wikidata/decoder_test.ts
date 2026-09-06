@@ -80,8 +80,8 @@ Deno.test("wd entities decoder preserves claims, rank, qualifiers, references", 
   assertEquals(title.value.text, "To Live");
   assertEquals(title.value.language, "en");
   assertEquals(title.references, 1);
-  const p407 = title.qualifiers.find((qualifier) =>
-    qualifier.property === "P407"
+  const p407 = title.qualifiers.find(
+    (qualifier) => qualifier.property === "P407",
   );
   if (p407?.value.kind !== "item") throw new Error("P407 not an item");
   assertEquals(p407.value.id, "Q1860");
@@ -150,10 +150,13 @@ Deno.test("wd cirrus search decoder extracts qids from page titles", () => {
       200,
       JSON.stringify({
         query: {
-          search: [{ ns: 0, title: "Q125131191" }, {
-            ns: 0,
-            title: "not-a-qid",
-          }],
+          search: [
+            { ns: 0, title: "Q125131191" },
+            {
+              ns: 0,
+              title: "not-a-qid",
+            },
+          ],
         },
       }),
     ),

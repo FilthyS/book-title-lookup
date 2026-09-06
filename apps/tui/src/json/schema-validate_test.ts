@@ -30,11 +30,7 @@ Deno.test("schema committed lookup snapshots validate against cli-json.v1", asyn
     );
     const doc = JSON.parse(await Deno.readTextFile(url)) as unknown;
     const result = validateAgainstSchema(doc, schema);
-    assertEquals(
-      result.ok,
-      true,
-      `${name}: ${result.ok ? "" : result.error}`,
-    );
+    assertEquals(result.ok, true, `${name}: ${result.ok ? "" : result.error}`);
   }
 });
 

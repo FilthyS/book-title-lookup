@@ -86,22 +86,18 @@ function alternativeTitlesOf(accumulator: CandidateAccumulator): string[] {
   const push = (text: string): void => {
     if (text !== display && !out.includes(text)) out.push(text);
   };
-  for (
-    const record of [...accumulator.workRecords, ...accumulator.editionRecords]
-  ) {
+  for (const record of [
+    ...accumulator.workRecords,
+    ...accumulator.editionRecords,
+  ]) {
     for (const title of titleClaims(record)) push(title.text);
   }
   for (const alias of accumulator.matchedAliases) push(alias.text);
   return out;
 }
 
-function toCandidateItem(
-  accumulator: CandidateAccumulator,
-): CandidateItem {
-  const records = [
-    ...accumulator.workRecords,
-    ...accumulator.editionRecords,
-  ];
+function toCandidateItem(accumulator: CandidateAccumulator): CandidateItem {
+  const records = [...accumulator.workRecords, ...accumulator.editionRecords];
   const references = canonicalReferences(accumulator.references);
   const editionCount = accumulator.editionRecords.length;
   const languages = new Set<string>();
@@ -116,16 +112,16 @@ function toCandidateItem(
       if (!authors.includes(claim.name)) authors.push(claim.name);
     }
   }
-  const years = records
-    .flatMap((record) =>
-      record.claims
-        .filter((
+  const years = records.flatMap((record) =>
+    record.claims
+      .filter(
+        (
           claim,
         ): claim is Extract<Claim, { readonly type: "publication-year" }> =>
-          claim.type === "publication-year"
-        )
-        .map((claim) => claim.year)
-    );
+          claim.type === "publication-year",
+      )
+      .map((claim) => claim.year),
+  );
   const publicationYear = years.length === 0 ? undefined : Math.min(...years);
   const contentLanguages = [...languages].sort();
   const item: CandidateItem = {
@@ -268,9 +264,8 @@ export function stableOrderItems(
   items: readonly CandidateItem[],
   query: BookQuery,
 ): readonly CandidateItem[] {
-  const queryAuthor = query.author === undefined
-    ? undefined
-    : normalizePersonName(query.author);
+  const queryAuthor =
+    query.author === undefined ? undefined : normalizePersonName(query.author);
   return [...items].sort((a, b) => compareCandidateItems(a, b, queryAuthor));
 }
 
@@ -295,10 +290,20 @@ function compareCandidateItems(
   const bEditions = countLanguageBearingEditions(b.editionRecords);
   if (aEditions !== bEditions) return bEditions - aEditions;
   // 5. stable tie-break: ascending canonical references then alias texts.
-  const aKey = a.references.map((r) => `${r.namespace}:${r.value}`).join(",") +
-    "|" + a.matchedAliases.map((alias) => alias.text).sort().join(",");
-  const bKey = b.references.map((r) => `${r.namespace}:${r.value}`).join(",") +
-    "|" + b.matchedAliases.map((alias) => alias.text).sort().join(",");
+  const aKey =
+    a.references.map((r) => `${r.namespace}:${r.value}`).join(",") +
+    "|" +
+    a.matchedAliases
+      .map((alias) => alias.text)
+      .sort()
+      .join(",");
+  const bKey =
+    b.references.map((r) => `${r.namespace}:${r.value}`).join(",") +
+    "|" +
+    b.matchedAliases
+      .map((alias) => alias.text)
+      .sort()
+      .join(",");
   if (aKey !== bKey) return aKey < bKey ? -1 : 1;
   return 0;
 }
@@ -390,7 +395,7 @@ function sameReference(a: ExternalReference, b: ExternalReference): boolean {
 function hasDirectRelation(record: SourceRecord, ctx: ResolvedWorkContext) {
   const linked = editionToWorkReferences(record);
   return linked.some((reference) =>
-    ctx.canonicalRefs.some((canonical) => sameReference(canonical, reference))
+    ctx.canonicalRefs.some((canonical) => sameReference(canonical, reference)),
   );
 }
 
@@ -461,7 +466,8 @@ export function assessExpandedEditions(
           code: "detached_work",
           references: record.refs,
           details: {
-            otherWork: linked.map((ref) => `${ref.namespace}:${ref.value}`)
+            otherWork: linked
+              .map((ref) => `${ref.namespace}:${ref.value}`)
               .join(","),
           },
         });
@@ -574,9 +580,8 @@ export function extractWorkAttestations(
 ): readonly AttestationSource[] {
   const out: AttestationSource[] = [];
   for (const claim of titleClaims(workRecord)) {
-    let language = claim.language !== undefined
-      ? canonicalizeLang(claim.language)
-      : "und";
+    let language =
+      claim.language !== undefined ? canonicalizeLang(claim.language) : "und";
     if (language === "und") {
       const contentLanguages = contentLanguagesOfRecord(workRecord);
       if (contentLanguages.length === 1) language = contentLanguages[0];
@@ -627,14 +632,14 @@ export function clueFactsForEdition(
     identifier: false,
   };
   const workTitles = ctx.workRecords.flatMap((work) =>
-    titleClaims(work).map((claim) => claim.text)
+    titleClaims(work).map((claim) => claim.text),
   );
 
   // title family
   for (const claim of titleClaims(record)) {
     if (
-      attestedTitles.some((text) =>
-        normalizeTitleText(text) === normalizeTitleText(claim.text)
+      attestedTitles.some(
+        (text) => normalizeTitleText(text) === normalizeTitleText(claim.text),
       )
     ) {
       facts.title = true;
@@ -646,8 +651,8 @@ export function clueFactsForEdition(
   for (const claim of record.claims) {
     if (claim.type !== "original-title") continue;
     if (
-      workTitles.some((text) =>
-        normalizeTitleText(text) === normalizeTitleText(claim.text)
+      workTitles.some(
+        (text) => normalizeTitleText(text) === normalizeTitleText(claim.text),
       )
     ) {
       facts.originalTitle = true;
@@ -657,7 +662,7 @@ export function clueFactsForEdition(
 
   // author family
   const workAuthors = ctx.workRecords.flatMap((work) =>
-    authorClaimsOfRecord(work)
+    authorClaimsOfRecord(work),
   );
   for (const claim of authorClaimsOfRecord(record)) {
     const matchedRef = workAuthors.some(

@@ -20,35 +20,35 @@ export type LookupCommand = "search" | "resolve" | "titles";
 
 export type TerminalSummary =
   | {
-    readonly status: "found";
-    readonly candidates: readonly WorkCandidate[];
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "found";
+      readonly candidates: readonly WorkCandidate[];
+      readonly warnings: readonly SourceWarning[];
+    }
   | {
-    readonly status: "needs_choice";
-    readonly reason: "ambiguous_identifier" | "indirect_evidence";
-    readonly candidates: readonly WorkCandidate[];
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "needs_choice";
+      readonly reason: "ambiguous_identifier" | "indirect_evidence";
+      readonly candidates: readonly WorkCandidate[];
+      readonly warnings: readonly SourceWarning[];
+    }
   | {
-    readonly status: "resolved";
-    readonly work: ResolvedWork;
-    readonly confirmation: "strong_reference";
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "resolved";
+      readonly work: ResolvedWork;
+      readonly confirmation: "strong_reference";
+      readonly warnings: readonly SourceWarning[];
+    }
   | {
-    readonly status: "not_found";
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "not_found";
+      readonly warnings: readonly SourceWarning[];
+    }
   | { readonly status: "failed"; readonly failures: readonly SourceFailure[] }
   | { readonly status: "cancelled" }
   | {
-    readonly status: "titles_found" | "no_attested_titles";
-    readonly work: ResolvedWork;
-    readonly targetLanguages: readonly LanguageTag[];
-    readonly groups: readonly TitleGroup[];
-    readonly warnings: readonly SourceWarning[];
-  };
+      readonly status: "titles_found" | "no_attested_titles";
+      readonly work: ResolvedWork;
+      readonly targetLanguages: readonly LanguageTag[];
+      readonly groups: readonly TitleGroup[];
+      readonly warnings: readonly SourceWarning[];
+    };
 
 function noticeOf(state: SessionState) {
   switch (state.screen) {

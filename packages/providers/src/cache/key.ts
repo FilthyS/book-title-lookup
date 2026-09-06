@@ -31,16 +31,19 @@ function sortedQuery(query: string): string {
   if (query === "") return "";
   const params = query.split("&").map((pair) => {
     const eq = pair.indexOf("=");
-    return eq === -1 ? { name: pair, value: "" } : {
-      name: pair.slice(0, eq),
-      value: pair.slice(eq + 1),
-    };
+    return eq === -1
+      ? { name: pair, value: "" }
+      : {
+          name: pair.slice(0, eq),
+          value: pair.slice(eq + 1),
+        };
   });
   params.sort((a, b) => {
     const byName = compareEncoded(a.name, b.name);
     return byName !== 0 ? byName : compareEncoded(a.value, b.value);
   });
-  return params.map((p) => p.value === "" ? p.name : `${p.name}=${p.value}`)
+  return params
+    .map((p) => (p.value === "" ? p.name : `${p.name}=${p.value}`))
     .join("&");
 }
 
@@ -51,24 +54,23 @@ function sortedQuery(query: string): string {
  */
 export function canonicalizeRequestUrl(input: string): string {
   const fragmentAt = input.indexOf("#");
-  const withoutFragment = fragmentAt === -1
-    ? input
-    : input.slice(0, fragmentAt);
+  const withoutFragment =
+    fragmentAt === -1 ? input : input.slice(0, fragmentAt);
   const schemeAt = withoutFragment.indexOf("://");
   if (schemeAt === -1) return withoutFragment;
 
   const scheme = withoutFragment.slice(0, schemeAt).toLowerCase();
   const afterScheme = withoutFragment.slice(schemeAt + 3);
   const queryAt = afterScheme.indexOf("?");
-  const pathAndAuthority = queryAt === -1
-    ? afterScheme
-    : afterScheme.slice(0, queryAt);
+  const pathAndAuthority =
+    queryAt === -1 ? afterScheme : afterScheme.slice(0, queryAt);
   const query = queryAt === -1 ? "" : afterScheme.slice(queryAt + 1);
 
   const authorityEnd = pathAndAuthority.search(/[/?#]/);
-  const authorityRaw = authorityEnd === -1
-    ? pathAndAuthority
-    : pathAndAuthority.slice(0, authorityEnd);
+  const authorityRaw =
+    authorityEnd === -1
+      ? pathAndAuthority
+      : pathAndAuthority.slice(0, authorityEnd);
   const path = authorityEnd === -1 ? "" : pathAndAuthority.slice(authorityEnd);
   const authority = authorityRaw.toLowerCase();
 

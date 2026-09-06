@@ -5,16 +5,14 @@
 // a real Windows Terminal session exercises their actual effect (manual
 // checklist). The driver owns when these sequences are written.
 
-export const ANSI = Object.freeze(
-  {
-    alternateScreenOn: "\x1b[?1049h",
-    alternateScreenOff: "\x1b[?1049l",
-    cursorHide: "\x1b[?25l",
-    cursorShow: "\x1b[?25h",
-    clearScreen: "\x1b[H\x1b[2J",
-    reset: "\x1b[0m",
-  } as const,
-);
+export const ANSI = Object.freeze({
+  alternateScreenOn: "\x1b[?1049h",
+  alternateScreenOff: "\x1b[?1049l",
+  cursorHide: "\x1b[?25l",
+  cursorShow: "\x1b[?25h",
+  clearScreen: "\x1b[H\x1b[2J",
+  reset: "\x1b[0m",
+} as const);
 
 /** Sequence written once when the TUI acquires the terminal. */
 export function enterAlternateScreen(): string {

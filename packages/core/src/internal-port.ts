@@ -39,10 +39,10 @@ export type SourceFetchOutcome =
 
 export type SourceExpansionOutcome =
   | {
-    readonly status: "ok";
-    readonly records: readonly SourceRecord[];
-    readonly warnings: readonly SourceWarning[];
-  }
+      readonly status: "ok";
+      readonly records: readonly SourceRecord[];
+      readonly warnings: readonly SourceWarning[];
+    }
   | { readonly status: "failed"; readonly failure: SourceFailure }
   | { readonly status: "cancelled" };
 

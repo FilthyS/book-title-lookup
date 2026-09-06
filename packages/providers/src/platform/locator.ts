@@ -19,10 +19,10 @@ import { APP_DIRECTORY_NAME, type PlatformKind } from "./platform.ts";
 
 export type RootsResult =
   | {
-    readonly status: "ok";
-    readonly configRoot: string;
-    readonly cacheRoot: string;
-  }
+      readonly status: "ok";
+      readonly configRoot: string;
+      readonly cacheRoot: string;
+    }
   | { readonly status: "permission_denied"; readonly name: EnvName }
   | { readonly status: "unsupported_environment"; readonly detail: string };
 
@@ -137,11 +137,13 @@ export function resolveDefaultRoots(input: ResolveInput): RootsResult {
         return { status: "permission_denied", name: "USERPROFILE" };
       }
 
-      const configBase = appdata ??
+      const configBase =
+        appdata ??
         (userprofile
           ? joinPath(style, userprofile, "AppData", "Roaming")
           : undefined);
-      const cacheBase = localappdata ??
+      const cacheBase =
+        localappdata ??
         (userprofile
           ? joinPath(style, userprofile, "AppData", "Local")
           : undefined);

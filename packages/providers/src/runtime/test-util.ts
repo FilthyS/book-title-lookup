@@ -77,11 +77,12 @@ export function scriptedFetch(options: ScriptedFetchOptions): typeof fetch {
     init?: RequestInit,
   ): Promise<Response> {
     await Promise.resolve();
-    const url = typeof input === "string"
-      ? input
-      : input instanceof URL
-      ? input.href
-      : input.url;
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
     options.onRequest?.(url, init);
     const index = callsByUrl.get(url) ?? 0;
     callsByUrl.set(url, index + 1);

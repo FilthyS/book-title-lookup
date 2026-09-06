@@ -1,0 +1,51 @@
+{
+  "name": "book-title-lookup",
+  "version": "0.1.0",
+  "description": "Find attested titles of the same book across languages.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "book-title": "dist/book-title.js"
+  },
+  "files": [
+    "dist/book-title.js",
+    "dist/book-title.js.map",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FilthyS/book-title-lookup.git"
+  },
+  "bugs": {
+    "url": "https://github.com/FilthyS/book-title-lookup/issues"
+  },
+  "homepage": "https://github.com/FilthyS/book-title-lookup#readme",
+  "scripts": {
+    "start": "tsx apps/tui/src/bin.ts",
+    "cli:version": "tsx apps/tui/src/bin.ts --version",
+    "cli:help": "tsx apps/tui/src/bin.ts --help",
+    "fmt": "biome format --write apps packages scripts testing package.json tsconfig.json biome.json",
+    "fmt:check": "biome format apps packages scripts testing package.json tsconfig.json biome.json",
+    "lint": "biome lint .",
+    "check": "tsc --noEmit",
+    "test": "node scripts/test.mjs",
+    "test:live-smoke": "tsx apps/tui/src/smoke/live-smoke.ts",
+    "build": "node scripts/build.mjs",
+    "verify:package": "node scripts/verify-package.mjs",
+    "smoke:install": "npm run build && node scripts/install-smoke.mjs",
+    "ci": "npm run fmt:check && npm run lint && npm run check && npm test && npm run build && npm run verify:package"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.12",
+    "@types/node": "22.20.1",
+    "esbuild": "0.28.2",
+    "string-width": "8.2.2",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2"
+  }
+}

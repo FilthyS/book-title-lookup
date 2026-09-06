@@ -184,9 +184,7 @@ export class CatalogService implements BookTitleCatalog {
   // Candidate resolution
   // -------------------------------------------------------------------------
 
-  async #resolveCandidate(
-    ref: CandidateRef,
-  ): Promise<ResolveOutcome> {
+  async #resolveCandidate(ref: CandidateRef): Promise<ResolveOutcome> {
     const registered = this.#candidates.get(ref);
     if (registered === undefined) {
       // A stale or fabricated candidate ref is an invariant violation.
@@ -199,10 +197,7 @@ export class CatalogService implements BookTitleCatalog {
     if (resolved.status === "failed") return resolved;
     if (resolved.status === "cancelled") return resolved;
     if (resolved.status === "not_found") return resolved;
-    const work = this.#registerWork(
-      resolved.work,
-      resolved.records,
-    );
+    const work = this.#registerWork(resolved.work, resolved.records);
     return {
       status: "resolved",
       work,
@@ -262,8 +257,8 @@ export class CatalogService implements BookTitleCatalog {
     // Duplicate identifier: distinct edition objects that carry the same
     // requested identifier, or records that name more than one Work cluster.
     const distinctEditions = distinctEditionKeys(fetched);
-    const duplicateByIdentifier = reference.namespace === "isbn" &&
-      distinctEditions.length > 1;
+    const duplicateByIdentifier =
+      reference.namespace === "isbn" && distinctEditions.length > 1;
     if (duplicateByIdentifier || clusters.length > 1) {
       const items = stableOrderItems(
         candidateItemsFromRecords(fetched).items.filter(
@@ -358,14 +353,14 @@ export class CatalogService implements BookTitleCatalog {
     | { readonly status: "none" }
     | { readonly status: "cancelled" }
     | {
-      readonly status: "failed";
-      readonly failures: readonly SourceFailure[];
-    }
+        readonly status: "failed";
+        readonly failures: readonly SourceFailure[];
+      }
     | {
-      readonly status: "indirect";
-      readonly items: readonly CandidateItem[];
-      readonly warnings: readonly SourceWarning[];
-    }
+        readonly status: "indirect";
+        readonly items: readonly CandidateItem[];
+        readonly warnings: readonly SourceWarning[];
+      }
   > {
     const editions: SourceRecord[] = [];
     const failures: SourceFailure[] = [];
@@ -388,27 +383,30 @@ export class CatalogService implements BookTitleCatalog {
     const qualifying = editions.filter((record) => {
       if (record.kind !== "edition") return false;
       return editionToWorkReferences(record).some((linked) =>
-        canonicalRefs.some((canonical) =>
-          canonical.namespace === linked.namespace &&
-          canonical.value === linked.value
-        )
+        canonicalRefs.some(
+          (canonical) =>
+            canonical.namespace === linked.namespace &&
+            canonical.value === linked.value,
+        ),
       );
     });
     if (qualifying.length !== 1) return { status: "none" };
     const edition = qualifying[0];
     const clueTexts = edition.claims
       .filter((claim) => claim.type === "original-title")
-      .map((claim) =>
-        (claim as Extract<Claim, { readonly type: "original-title" }>).text
+      .map(
+        (claim) =>
+          (claim as Extract<Claim, { readonly type: "original-title" }>).text,
       );
     const hasTranslatedFrom = hasClaimOfType(edition, "translated-from");
-    const hasAuthor = authorClaimsOfRecord(edition).length > 0 ||
+    const hasAuthor =
+      authorClaimsOfRecord(edition).length > 0 ||
       hasClaimOfType(edition, "translator");
     if (clueTexts.length === 0 || !(hasTranslatedFrom || hasAuthor)) {
       return { status: "none" };
     }
-    const authorNames = authorClaimsOfRecord(edition).map((claim) =>
-      claim.name
+    const authorNames = authorClaimsOfRecord(edition).map(
+      (claim) => claim.name,
     );
 
     const items: CandidateItem[] = [];
@@ -440,20 +438,22 @@ export class CatalogService implements BookTitleCatalog {
       for (const candidate of assembled.items) {
         // Keep candidates that are not the already-resolved Work.
         const isSelf = candidate.references.some((candidateRef) =>
-          canonicalRefs.some((canonical) =>
-            canonical.namespace === candidateRef.namespace &&
-            canonical.value === candidateRef.value
-          )
+          canonicalRefs.some(
+            (canonical) =>
+              canonical.namespace === candidateRef.namespace &&
+              canonical.value === candidateRef.value,
+          ),
         );
         if (
           !isSelf &&
           !items.some((existing) =>
             candidate.references.every((candidateRef) =>
-              existing.references.some((existingRef) =>
-                existingRef.namespace === candidateRef.namespace &&
-                existingRef.value === candidateRef.value
-              )
-            )
+              existing.references.some(
+                (existingRef) =>
+                  existingRef.namespace === candidateRef.namespace &&
+                  existingRef.value === candidateRef.value,
+              ),
+            ),
           )
         ) {
           items.push(candidate);
@@ -479,11 +479,9 @@ export class CatalogService implements BookTitleCatalog {
     let sawFailure = false;
     const seen = new Set<string>();
 
-    for (
-      const reference of uniqueReferencesByNamespace(
-        registered.work.references,
-      )
-    ) {
+    for (const reference of uniqueReferencesByNamespace(
+      registered.work.references,
+    )) {
       for (const source of this.#sources) {
         const outcome = await source.expandEditions(reference, options);
         if (outcome.status === "cancelled") return { status: "cancelled" };
@@ -509,14 +507,16 @@ export class CatalogService implements BookTitleCatalog {
     }
 
     const canonicalRefs = registered.work.references;
-    const workRecords = records.filter((record) =>
-      record.kind === "work" &&
-      workReferencesOfRecord(record).some((reference) =>
-        canonicalRefs.some((canonical) =>
-          canonical.namespace === reference.namespace &&
-          canonical.value === reference.value
-        )
-      )
+    const workRecords = records.filter(
+      (record) =>
+        record.kind === "work" &&
+        workReferencesOfRecord(record).some((reference) =>
+          canonicalRefs.some(
+            (canonical) =>
+              canonical.namespace === reference.namespace &&
+              canonical.value === reference.value,
+          ),
+        ),
     );
 
     const ctx = { canonicalRefs, workRecords };
@@ -568,9 +568,8 @@ export class CatalogService implements BookTitleCatalog {
     for (const workRecord of workRecords) {
       for (const source of extractWorkAttestations(workRecord)) {
         members.push({
-          level: source.attestation.language === "und"
-            ? "ambiguous"
-            : "probable",
+          level:
+            source.attestation.language === "und" ? "ambiguous" : "probable",
           attestation: toModuleAttestation(source, "work_original_title"),
         });
       }
@@ -615,18 +614,20 @@ export class CatalogService implements BookTitleCatalog {
     | { readonly status: "ok"; readonly records: readonly SourceRecord[] }
     | { readonly status: "cancelled" }
     | {
-      readonly status: "failed";
-      readonly failures: readonly SourceFailure[];
-    }
+        readonly status: "failed";
+        readonly failures: readonly SourceFailure[];
+      }
   > {
-    const hasWork = existing.some((record) =>
-      record.kind === "work" &&
-      workReferencesOfRecord(record).some((reference) =>
-        targetRefs.some((target) =>
-          target.namespace === reference.namespace &&
-          target.value === reference.value
-        )
-      )
+    const hasWork = existing.some(
+      (record) =>
+        record.kind === "work" &&
+        workReferencesOfRecord(record).some((reference) =>
+          targetRefs.some(
+            (target) =>
+              target.namespace === reference.namespace &&
+              target.value === reference.value,
+          ),
+        ),
     );
     const records = [...existing];
     if (!hasWork) {
@@ -641,14 +642,16 @@ export class CatalogService implements BookTitleCatalog {
       }
       if (
         failures.length > 0 &&
-        !records.some((record) =>
-          record.kind === "work" &&
-          workReferencesOfRecord(record).some((reference) =>
-            targetRefs.some((target) =>
-              target.namespace === reference.namespace &&
-              target.value === reference.value
-            )
-          )
+        !records.some(
+          (record) =>
+            record.kind === "work" &&
+            workReferencesOfRecord(record).some((reference) =>
+              targetRefs.some(
+                (target) =>
+                  target.namespace === reference.namespace &&
+                  target.value === reference.value,
+              ),
+            ),
         )
       ) {
         return { status: "failed", failures: sortedFailures(failures) };
@@ -662,28 +665,30 @@ export class CatalogService implements BookTitleCatalog {
     records: readonly SourceRecord[],
   ):
     | {
-      readonly status: "ok";
-      readonly work: ResolvedWorkCore;
-      readonly records: readonly SourceRecord[];
-      readonly warnings: readonly SourceWarning[];
-    }
+        readonly status: "ok";
+        readonly work: ResolvedWorkCore;
+        readonly records: readonly SourceRecord[];
+        readonly warnings: readonly SourceWarning[];
+      }
     | {
-      readonly status: "not_found";
-      readonly warnings: readonly SourceWarning[];
-    }
+        readonly status: "not_found";
+        readonly warnings: readonly SourceWarning[];
+      }
     | { readonly status: "failed"; readonly failures: readonly SourceFailure[] }
     | { readonly status: "cancelled" } {
     if (distinctWorks.length === 0) {
       return { status: "not_found", warnings: [] };
     }
-    const workRecords = records.filter((record) =>
-      record.kind === "work" &&
-      workReferencesOfRecord(record).some((reference) =>
-        distinctWorks.some((workRef) =>
-          workRef.namespace === reference.namespace &&
-          workRef.value === reference.value
-        )
-      )
+    const workRecords = records.filter(
+      (record) =>
+        record.kind === "work" &&
+        workReferencesOfRecord(record).some((reference) =>
+          distinctWorks.some(
+            (workRef) =>
+              workRef.namespace === reference.namespace &&
+              workRef.value === reference.value,
+          ),
+        ),
     );
     if (workRecords.length === 0) {
       return { status: "not_found", warnings: [] };
@@ -727,11 +732,10 @@ function summarizeResolved(
     }
   }
   const years = workRecords.flatMap((record) =>
-    claimsOfType(record, "publication-year").map((claim) => claim.year)
+    claimsOfType(record, "publication-year").map((claim) => claim.year),
   );
-  const firstPublicationYear = years.length === 0
-    ? undefined
-    : Math.min(...years);
+  const firstPublicationYear =
+    years.length === 0 ? undefined : Math.min(...years);
   return {
     title,
     authors,
@@ -763,10 +767,14 @@ function originalLanguageOf(
 
 function recordKey(record: SourceRecord): string {
   if (record.refs.length > 0) {
-    return record.source + "\u0000" + record.refs
-      .map((ref) => `${ref.namespace}:${ref.value}`)
-      .sort()
-      .join(",");
+    return (
+      record.source +
+      "\u0000" +
+      record.refs
+        .map((ref) => `${ref.namespace}:${ref.value}`)
+        .sort()
+        .join(",")
+    );
   }
   return record.source + "\u0000" + record.sourceRecordUrl;
 }
@@ -819,9 +827,10 @@ function workClusters(
 
   const clusters = new Map<string, ExternalReference[]>();
   for (const record of records) {
-    const refs = record.kind === "work"
-      ? refsOfWorkRecord(record)
-      : editionToWorkReferences(record);
+    const refs =
+      record.kind === "work"
+        ? refsOfWorkRecord(record)
+        : editionToWorkReferences(record);
     for (const reference of refs) {
       const key = keyOf(reference);
       const root = find(key);
@@ -866,11 +875,12 @@ function itemFromRecords(
   if (items.length === 0) return undefined;
   const match = items.find((item) =>
     item.references.some((reference) =>
-      preferredRefs.some((preferred) =>
-        preferred.namespace === reference.namespace &&
-        preferred.value === reference.value
-      )
-    )
+      preferredRefs.some(
+        (preferred) =>
+          preferred.namespace === reference.namespace &&
+          preferred.value === reference.value,
+      ),
+    ),
   );
   return match ?? items[0];
 }

@@ -1,26 +1,24 @@
 /**
  * Real-entry smoke tests for the issue #32 composition root.
  *
- * These spawn `deno run apps/tui/src/main.ts` like a user would, so they also
- * prove the permission surface: the process only ever reads allowlisted
- * environment names. Row X22 keeps BOOK_TITLE_GOOGLE_API_KEY in the child
- * environment without granting it, so an accidental read would fail loudly
- * and an accidental echo would leak the secret.
+ * These spawn the TypeScript Node entry like a developer would. Row X22 keeps
+ * BOOK_TITLE_GOOGLE_API_KEY in the child environment and proves first-party
+ * application code neither reads nor echoes the reserved secret.
  */
 
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { assert, assertEquals } from "@std/assert";
-import {
-  detectPlatformKind,
-} from "../../../packages/providers/src/platform/platform.ts";
+import { detectPlatformKind } from "../../../packages/providers/src/platform/platform.ts";
 import {
   joinPath,
   styleFromPlatform,
 } from "../../../packages/providers/src/platform/paths.ts";
-import { syncWriter } from "./main.ts";
+import { streamWriter } from "./main.ts";
 
-const ENTRY = new URL("./main.ts", import.meta.url).href;
+const ENTRY = fileURLToPath(new URL("./bin.ts", import.meta.url));
 const VERSION_LINE = "book-title 0.1.0";
-const platform = detectPlatformKind(Deno.build.os);
+const platform = detectPlatformKind(process.platform);
 const style = styleFromPlatform(platform);
 
 interface ChildResult {
@@ -33,23 +31,22 @@ async function runEntry(
   args: readonly string[],
   options: { readonly env?: Record<string, string> } = {},
 ): Promise<ChildResult> {
-  const command = new Deno.Command("deno", {
-    args: [
-      "run",
-      "--no-prompt",
-      "--allow-env=BOOK_TITLE_CONTACT,BOOK_TITLE_CACHE_DIR,BOOK_TITLE_OFFLINE,BOOK_TITLE_LOG_LEVEL,HOME,XDG_CONFIG_HOME,XDG_CACHE_HOME,LOCALAPPDATA,APPDATA,USERPROFILE",
-      "--allow-read=.",
-      "--allow-write=.",
-      ENTRY,
-      ...args,
-    ],
-    env: options.env,
+  const child = spawn(process.execPath, ["--import=tsx", ENTRY, ...args], {
+    env: { ...process.env, ...options.env },
+    stdio: ["ignore", "pipe", "pipe"],
   });
-  const output = await command.output();
+  const stdout: Buffer[] = [];
+  const stderr: Buffer[] = [];
+  child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
+  child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
+  const code = await new Promise<number>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (exitCode) => resolve(exitCode ?? 1));
+  });
   return {
-    code: output.code,
-    stdout: new TextDecoder().decode(output.stdout),
-    stderr: new TextDecoder().decode(output.stderr),
+    code,
+    stdout: Buffer.concat(stdout).toString(),
+    stderr: Buffer.concat(stderr).toString(),
   };
 }
 
@@ -74,28 +71,28 @@ function scratchEnv(root: string): Record<string, string> {
   };
 }
 
-Deno.test("sync writer completes a frame after partial stream writes", async () => {
+Deno.test("stream writer waits for the stream completion callback", async () => {
   const chunks: Uint8Array[] = [];
-  const writer = syncWriter({
-    writeSync(data: Uint8Array): number {
-      const written = Math.min(7, data.length);
-      chunks.push(data.slice(0, written));
-      return written;
+  let complete: ((error?: Error | null) => void) | undefined;
+  const writer = streamWriter({
+    write(data: Uint8Array, callback: (error?: Error | null) => void): boolean {
+      chunks.push(data.slice());
+      complete = callback;
+      return false;
     },
   });
   const frame = `${"┌─┐\r\n│ │\r\n└─┘\r\n".repeat(200)}↓ more title groups`;
 
-  await writer.write(frame);
+  let resolved = false;
+  const writing = writer.write(frame).then(() => {
+    resolved = true;
+  });
+  await Promise.resolve();
+  assertEquals(resolved, false);
+  complete?.();
+  await writing;
 
-  const output = new Uint8Array(
-    chunks.reduce((length, chunk) => length + chunk.length, 0),
-  );
-  let offset = 0;
-  for (const chunk of chunks) {
-    output.set(chunk, offset);
-    offset += chunk.length;
-  }
-  assertEquals(new TextDecoder().decode(output), frame);
+  assertEquals(Buffer.concat(chunks).toString(), frame);
 });
 
 Deno.test("cli entry --version prints one stamp line and exits 0", async () => {

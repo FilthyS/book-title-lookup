@@ -6,9 +6,7 @@
  */
 
 import type { ResolvedSettings } from "../settings/resolver.ts";
-import type {
-  CacheEntrySummary,
-} from "../../../../packages/providers/src/cache/store.ts";
+import type { CacheEntrySummary } from "../../../../packages/providers/src/cache/store.ts";
 import {
   bodyBytesOf,
   bodyTextOf,
@@ -19,9 +17,9 @@ export function configShowHuman(settings: ResolvedSettings): string {
   const lines: string[] = [
     `config root:  ${settings.configRoot} ${origin("default")}`,
     `cache root:   ${settings.cacheRoot} ${origin(settings.sources.cacheRoot)}`,
-    `offline:      ${String(settings.offline)} ${
-      origin(settings.sources.offline)
-    }`,
+    `offline:      ${String(settings.offline)} ${origin(
+      settings.sources.offline,
+    )}`,
     `log level:    ${settings.logLevel} ${origin(settings.sources.logLevel)}`,
   ];
   if (settings.contact !== undefined) {
@@ -33,9 +31,10 @@ export function configShowHuman(settings: ResolvedSettings): string {
 }
 
 export function cacheListHuman(entries: readonly CacheEntrySummary[]): string {
-  const lines = entries.map((entry) =>
-    `${entry.digest}  ${entry.provider}  ${entry.freshnessClass}  ${entry.state}  ` +
-    `${entry.fetchedAt}  ${entry.byteLength} B  ${entry.url}`
+  const lines = entries.map(
+    (entry) =>
+      `${entry.digest}  ${entry.provider}  ${entry.freshnessClass}  ${entry.state}  ` +
+      `${entry.fetchedAt}  ${entry.byteLength} B  ${entry.url}`,
   );
   if (lines.length === 0) return "";
   return lines.join("\n") + "\n";

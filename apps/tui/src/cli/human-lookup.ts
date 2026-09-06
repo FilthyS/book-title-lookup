@@ -26,15 +26,14 @@ function authorText(authors: readonly string[]): string {
   return authors.length === 0 ? "" : `   Authors: ${authors.join(", ")}\n`;
 }
 
-function candidateLines(
-  candidates: readonly WorkCandidate[],
-): string {
+function candidateLines(candidates: readonly WorkCandidate[]): string {
   if (candidates.length === 0) return "";
   const parts: string[] = [];
   candidates.forEach((candidate, index) => {
-    const year = candidate.publicationYear !== undefined
-      ? ` (${candidate.publicationYear})`
-      : "";
+    const year =
+      candidate.publicationYear !== undefined
+        ? ` (${candidate.publicationYear})`
+        : "";
     parts.push(`${index + 1}. ${candidate.title}${year}\n`);
     parts.push(authorText(candidate.authors));
     if (candidate.alternativeTitles.length > 0) {
@@ -49,9 +48,8 @@ function candidateLines(
 
 function groupAttestationLines(group: TitleGroup): string {
   const editionRefs = group.attestations.flatMap((member) => member.references);
-  const refs = editionRefs.length > 0
-    ? `   Editions: ${refsText(editionRefs)}\n`
-    : "";
+  const refs =
+    editionRefs.length > 0 ? `   Editions: ${refsText(editionRefs)}\n` : "";
   return `  ${group.title}  [${group.level}]\n${refs}`;
 }
 
@@ -86,9 +84,7 @@ function titleGroupsHuman(
   if (ambiguous.length > 0) {
     parts.push("\nAmbiguous\n");
     for (const group of ambiguous) {
-      parts.push(
-        `  ${group.language}: ${group.title}  [${group.level}]\n`,
-      );
+      parts.push(`  ${group.language}: ${group.title}  [${group.level}]\n`);
     }
   }
   return parts.join("");
@@ -99,9 +95,10 @@ export function humanTextForSummary(summary: TerminalSummary): string {
     case "found":
       return `Candidates\n${candidateLines(summary.candidates)}`;
     case "needs_choice": {
-      const reason = summary.reason === "ambiguous_identifier"
-        ? "The identifier is ambiguous; choose a Work to confirm."
-        : "Indirect evidence found a stronger candidate; choose a Work to confirm.";
+      const reason =
+        summary.reason === "ambiguous_identifier"
+          ? "The identifier is ambiguous; choose a Work to confirm."
+          : "Indirect evidence found a stronger candidate; choose a Work to confirm.";
       return `${reason}\n${candidateLines(summary.candidates)}`;
     }
     case "resolved": {
@@ -126,34 +123,34 @@ export function humanTextForSummary(summary: TerminalSummary): string {
     case "titles_found":
       return titleGroupsHuman(summary);
     case "no_attested_titles":
-      return titleGroupsHuman(summary) +
-        "No attested title satisfied the requested languages.\n";
+      return (
+        titleGroupsHuman(summary) +
+        "No attested title satisfied the requested languages.\n"
+      );
   }
 }
 
-export function warningsToStderr(
-  warnings: readonly SourceWarning[],
-): string {
+export function warningsToStderr(warnings: readonly SourceWarning[]): string {
   if (warnings.length === 0) return "";
   return warnings
     .map((warning) => {
-      const refs = warning.references.length > 0
-        ? ` (${refsText(warning.references)})`
-        : "";
+      const refs =
+        warning.references.length > 0
+          ? ` (${refsText(warning.references)})`
+          : "";
       return `warning: ${warning.source} ${warning.code}${refs}\n`;
     })
     .join("");
 }
 
-export function failuresToStderr(
-  failures: readonly SourceFailure[],
-): string {
+export function failuresToStderr(failures: readonly SourceFailure[]): string {
   if (failures.length === 0) return "";
   return failures
     .map((failure) => {
-      const refs = failure.references.length > 0
-        ? ` (${refsText(failure.references)})`
-        : "";
+      const refs =
+        failure.references.length > 0
+          ? ` (${refsText(failure.references)})`
+          : "";
       return `error: ${failure.source} ${failure.code}${refs}\n`;
     })
     .join("");

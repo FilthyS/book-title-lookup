@@ -9,16 +9,10 @@ import {
   type EnvironmentReader,
   MemoryEnvironment,
 } from "../../../../packages/providers/src/platform/env.ts";
-import {
-  DenoFileSystemSeam,
-} from "../../../../packages/providers/src/cache/fs-seam.ts";
+import { NodeFileSystemSeam } from "../../../../packages/providers/src/cache/fs-seam.ts";
 import { FixedClock } from "../../../../packages/providers/src/cache/clock.ts";
-import {
-  systemRandomSource,
-} from "../../../../packages/providers/src/cache/random.ts";
-import {
-  detectPlatformKind,
-} from "../../../../packages/providers/src/platform/platform.ts";
+import { systemRandomSource } from "../../../../packages/providers/src/cache/random.ts";
+import { detectPlatformKind } from "../../../../packages/providers/src/platform/platform.ts";
 import type { TerminalIo, TerminalSize } from "../tui/terminal.ts";
 
 const platform = detectPlatformKind(Deno.build.os);
@@ -106,7 +100,7 @@ function makeDeps(options: {
       stdout,
       stderr,
       env: options.env ?? new MemoryEnvironment({}),
-      fs: new DenoFileSystemSeam(),
+      fs: new NodeFileSystemSeam(),
       platform,
       clock: new FixedClock(FIXED),
       random: systemRandomSource,

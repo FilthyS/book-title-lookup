@@ -69,9 +69,7 @@ export function typeKeyOfRecord(
 }
 
 /** Extract nested `{key}` references from arrays such as `works`/`languages`. */
-export function keysOfRefArray(
-  value: unknown,
-): readonly string[] | undefined {
+export function keysOfRefArray(value: unknown): readonly string[] | undefined {
   const entries = asRecordArray(value);
   if (entries === undefined) return undefined;
   const out: string[] = [];

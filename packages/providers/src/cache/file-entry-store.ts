@@ -37,6 +37,7 @@ import type {
   ProviderId,
   ResponseCache,
 } from "./store.ts";
+import process from "node:process";
 
 const LIVE_ENTRY = /^[0-9a-f]{64}\.json$/;
 const TEMP_SUFFIX = ".tmp";
@@ -70,7 +71,7 @@ export class FileEntryStore implements ResponseCache {
   };
 
   constructor(options: FileEntryStoreOptions) {
-    const platform = options.platform ?? detectPlatformKind(Deno.build.os);
+    const platform = options.platform ?? detectPlatformKind(process.platform);
     this.#platform = platform;
     this.#style = styleFromPlatform(platform);
     this.#root = canonicalPath(options.cacheRoot, this.#style);
@@ -235,7 +236,8 @@ export class FileEntryStore implements ResponseCache {
       if (result.ok) return { status: "stored" };
       lastError = result;
       if (
-        this.#platform === "windows" && attempt < this.#renameRetry.attempts - 1
+        this.#platform === "windows" &&
+        attempt < this.#renameRetry.attempts - 1
       ) {
         const jitter = this.#random.int(this.#renameRetry.baseDelayMs + 1);
         await new Promise((resolve) => setTimeout(resolve, jitter));
@@ -298,10 +300,9 @@ export class FileEntryStore implements ResponseCache {
       if (!validation.ok) continue;
       entries.push(summarizeEntry(parsed.envelope, this.#clock.now()));
     }
-    entries.sort((
-      a,
-      b,
-    ) => (a.digest < b.digest ? -1 : a.digest > b.digest ? 1 : 0));
+    entries.sort((a, b) =>
+      a.digest < b.digest ? -1 : a.digest > b.digest ? 1 : 0,
+    );
     return { status: "ok", entries };
   }
 
@@ -397,7 +398,8 @@ export class FileEntryStore implements ResponseCache {
       const stat = await this.#fs.stat(file);
       const isTemp = name.endsWith(TEMP_SUFFIX);
       if (
-        isTemp && stat.ok &&
+        isTemp &&
+        stat.ok &&
         now - stat.stat.mtimeMs >= this.#tempReclaimOlderThanMs
       ) {
         const removed = await this.#fs.remove(file);
@@ -448,9 +450,9 @@ export class FileEntryStore implements ResponseCache {
       mode: 0o700,
     });
     if (!mkdir.ok) return undefined;
-    const name = `${digest}.${epochMsOf(this.#clock.now())}.${
-      this.#random.hex(4)
-    }.json`;
+    const name = `${digest}.${epochMsOf(this.#clock.now())}.${this.#random.hex(
+      4,
+    )}.json`;
     const target = joinPath(this.#style, quarantineDir, name);
     this.#guard(target);
     const moved = await this.#fs.rename(sourcePath, target);

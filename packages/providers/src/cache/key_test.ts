@@ -54,8 +54,7 @@ Deno.test("cache/key digest is stable and 64 lowercase hex characters", async ()
   const identity: CanonicalRequestIdentity = {
     provider: "openlibrary",
     method: "GET",
-    url:
-      "https://openlibrary.org/search.json?q=%E7%99%BE%E5%B9%B4%E5%AD%A4%E7%8B%AC",
+    url: "https://openlibrary.org/search.json?q=%E7%99%BE%E5%B9%B4%E5%AD%A4%E7%8B%AC",
   };
   const digest = await digestForIdentity(identity);
   assertEquals(digest.length, 64);

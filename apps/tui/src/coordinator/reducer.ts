@@ -56,10 +56,7 @@ function baseOf(state: SessionState) {
   };
 }
 
-function queryNode(
-  state: SessionState,
-  notice: Notice | null,
-): QueryState {
+function queryNode(state: SessionState, notice: Notice | null): QueryState {
   return { screen: "query", ...baseOf(state), notice };
 }
 
@@ -97,22 +94,22 @@ function applyEditing(draft: QueryDraft, message: Message): QueryDraft {
       }));
     }
     case "backspace":
-      return editFocused(
-        draft,
-        (value, cursor) =>
-          cursor <= 0 ? { value, cursor } : {
-            value: value.slice(0, cursor - 1) + value.slice(cursor),
-            cursor: cursor - 1,
-          },
+      return editFocused(draft, (value, cursor) =>
+        cursor <= 0
+          ? { value, cursor }
+          : {
+              value: value.slice(0, cursor - 1) + value.slice(cursor),
+              cursor: cursor - 1,
+            },
       );
     case "delete":
-      return editFocused(
-        draft,
-        (value, cursor) =>
-          cursor >= value.length ? { value, cursor } : {
-            value: value.slice(0, cursor) + value.slice(cursor + 1),
-            cursor,
-          },
+      return editFocused(draft, (value, cursor) =>
+        cursor >= value.length
+          ? { value, cursor }
+          : {
+              value: value.slice(0, cursor) + value.slice(cursor + 1),
+              cursor,
+            },
       );
     case "moveCursor":
       return editFocused(draft, (value, cursor) => ({
@@ -195,10 +192,7 @@ function resolvedNode(
   return { screen: "resolved", ...baseOf(state), snapshot, notice };
 }
 
-function backFrom(
-  state: SessionState,
-  notice: Notice | null,
-): SessionState {
+function backFrom(state: SessionState, notice: Notice | null): SessionState {
   switch (state.screen) {
     case "searching":
       return queryNode(state, notice);
@@ -320,10 +314,7 @@ function moveSelected(state: SessionState, step: number): SessionState {
 // Reducer
 // ---------------------------------------------------------------------------
 
-export function update(
-  state: SessionState,
-  message: Message,
-): UpdateResult {
+export function update(state: SessionState, message: Message): UpdateResult {
   switch (message.type) {
     // Editing: only at the Query station.
     case "focusField":
@@ -341,8 +332,10 @@ export function update(
 
     case "newSearch": {
       if (
-        state.screen !== "candidates" && state.screen !== "resolved" &&
-        state.screen !== "titles" && state.screen !== "group_detail"
+        state.screen !== "candidates" &&
+        state.screen !== "resolved" &&
+        state.screen !== "titles" &&
+        state.screen !== "group_detail"
       ) {
         return noChange(state);
       }
@@ -386,7 +379,8 @@ export function update(
 
     case "searchOutcome": {
       if (
-        state.screen !== "searching" || state.requestId !== message.requestId
+        state.screen !== "searching" ||
+        state.requestId !== message.requestId
       ) {
         return noChange(state);
       }
@@ -457,8 +451,10 @@ export function update(
         };
       }
       if (
-        state.screen === "candidates" || state.screen === "resolved" ||
-        state.screen === "titles" || state.screen === "group_detail"
+        state.screen === "candidates" ||
+        state.screen === "resolved" ||
+        state.screen === "titles" ||
+        state.screen === "group_detail"
       ) {
         return { next: backFrom(state, null), effects: [] };
       }
@@ -487,10 +483,12 @@ export function update(
           target: { kind: "candidate", ref: row.ref },
           requestId: null,
         },
-        effects: [{
-          kind: "resolve",
-          target: { kind: "candidate", ref: row.ref },
-        }],
+        effects: [
+          {
+            kind: "resolve",
+            target: { kind: "candidate", ref: row.ref },
+          },
+        ],
       };
     }
 
@@ -504,16 +502,19 @@ export function update(
           target: { kind: "externalReference", reference: message.reference },
           requestId: null,
         },
-        effects: [{
-          kind: "resolve",
-          target: { kind: "externalReference", reference: message.reference },
-        }],
+        effects: [
+          {
+            kind: "resolve",
+            target: { kind: "externalReference", reference: message.reference },
+          },
+        ],
       };
     }
 
     case "resolveOutcome": {
       if (
-        state.screen !== "resolving" || state.requestId !== message.requestId
+        state.screen !== "resolving" ||
+        state.requestId !== message.requestId
       ) {
         return noChange(state);
       }
@@ -534,11 +535,13 @@ export function update(
               snapshot,
               requestId: null,
             },
-            effects: [{
-              kind: "findTitles",
-              workRef: outcome.work.ref,
-              query: { targetLanguages: state.targetLanguages },
-            }],
+            effects: [
+              {
+                kind: "findTitles",
+                workRef: outcome.work.ref,
+                query: { targetLanguages: state.targetLanguages },
+              },
+            ],
           };
         }
         case "needs_choice": {
@@ -592,11 +595,13 @@ export function update(
           snapshot: state.snapshot,
           requestId: null,
         },
-        effects: [{
-          kind: "findTitles",
-          workRef: state.snapshot.work.ref,
-          query: { targetLanguages: state.targetLanguages },
-        }],
+        effects: [
+          {
+            kind: "findTitles",
+            workRef: state.snapshot.work.ref,
+            query: { targetLanguages: state.targetLanguages },
+          },
+        ],
       };
     }
 
@@ -612,9 +617,10 @@ export function update(
         case "found":
         case "no_attested_titles": {
           const payload = buildTitlesPayload(state, outcome, state.snapshot);
-          const notice = outcome.status === "no_attested_titles"
-            ? noticeFor("titles.none")
-            : null;
+          const notice =
+            outcome.status === "no_attested_titles"
+              ? noticeFor("titles.none")
+              : null;
           return {
             next: {
               screen: "titles",
@@ -658,19 +664,19 @@ export function update(
           targetLanguages: message.tags,
           requestId: null,
         },
-        effects: [{
-          kind: "findTitles",
-          workRef: state.snapshot.work.ref,
-          query: { targetLanguages: message.tags },
-        }],
+        effects: [
+          {
+            kind: "findTitles",
+            workRef: state.snapshot.work.ref,
+            query: { targetLanguages: message.tags },
+          },
+        ],
       };
     }
 
     case "selectGroup": {
       if (state.screen !== "titles") return noChange(state);
-      if (
-        message.index < 0 || message.index >= state.payload.groups.length
-      ) {
+      if (message.index < 0 || message.index >= state.payload.groups.length) {
         return noChange(state);
       }
       return {
@@ -688,10 +694,13 @@ export function update(
     case "quit": {
       const id = requestIdOf(state);
       if (id !== null) {
-        return effectOnly(state, [{ kind: "abort", requestId: id }, {
-          kind: "exit",
-          code: 0,
-        }]);
+        return effectOnly(state, [
+          { kind: "abort", requestId: id },
+          {
+            kind: "exit",
+            code: 0,
+          },
+        ]);
       }
       return effectOnly(state, [{ kind: "exit", code: 0 }]);
     }

@@ -79,12 +79,13 @@ export async function runDirectedSession(
       const outcome = await input.catalog.search(effect.query, options);
       queue.push({ type: "searchOutcome", requestId, outcome });
     } else if (effect.kind === "resolve") {
-      const target = effect.target.kind === "candidate"
-        ? { kind: "candidate" as const, ref: effect.target.ref as never }
-        : {
-          kind: "externalReference" as const,
-          reference: effect.target.reference,
-        };
+      const target =
+        effect.target.kind === "candidate"
+          ? { kind: "candidate" as const, ref: effect.target.ref as never }
+          : {
+              kind: "externalReference" as const,
+              reference: effect.target.reference,
+            };
       const outcome = await input.catalog.resolve(target, options);
       queue.push({ type: "resolveOutcome", requestId, outcome });
     } else {
@@ -112,7 +113,8 @@ export async function runDirectedSession(
         continue;
       }
       if (
-        effect.kind === "search" || effect.kind === "resolve" ||
+        effect.kind === "search" ||
+        effect.kind === "resolve" ||
         effect.kind === "findTitles"
       ) {
         await runRequest(effect);

@@ -175,8 +175,7 @@ export async function resolveSettings(
           ok: false,
           failure: {
             kind: "invalid_config",
-            detail:
-              `BOOK_TITLE_OFFLINE has an invalid boolean value: ${envOffline.value}`,
+            detail: `BOOK_TITLE_OFFLINE has an invalid boolean value: ${envOffline.value}`,
           },
         };
       }
@@ -208,8 +207,7 @@ export async function resolveSettings(
         ok: false,
         failure: {
           kind: "invalid_config",
-          detail:
-            `BOOK_TITLE_LOG_LEVEL has an invalid value: ${envLogLevel.value}`,
+          detail: `BOOK_TITLE_LOG_LEVEL has an invalid value: ${envLogLevel.value}`,
         },
       };
     }
@@ -329,7 +327,9 @@ function parseUserConfigFile(
   }
   for (const key of Object.keys(record)) {
     if (
-      key !== "schemaVersion" && key !== "offline" && key !== "logLevel" &&
+      key !== "schemaVersion" &&
+      key !== "offline" &&
+      key !== "logLevel" &&
       key !== "contact"
     ) {
       return { ok: false, detail: `unknown config key: ${key}` };
@@ -338,12 +338,12 @@ function parseUserConfigFile(
   if (record.offline !== undefined && typeof record.offline !== "boolean") {
     return { ok: false, detail: "config key offline must be a boolean" };
   }
-  if (record.logLevel !== undefined && (!isLogLevel(String(record.logLevel)))) {
+  if (record.logLevel !== undefined && !isLogLevel(String(record.logLevel))) {
     return {
       ok: false,
-      detail: `config key logLevel has an invalid value: ${
-        String(record.logLevel)
-      }`,
+      detail: `config key logLevel has an invalid value: ${String(
+        record.logLevel,
+      )}`,
     };
   }
   if (record.contact !== undefined && typeof record.contact !== "string") {

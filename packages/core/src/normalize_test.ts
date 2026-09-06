@@ -76,25 +76,16 @@ Deno.test("isbn canonicalization converts ISBN-10 to ISBN-13", () => {
   // 7544253996 is the ISBN-10 form of the canonical 9787544253994.
   assertEquals(canonicalizeIsbn("7-5442-5399-6"), "9787544253994");
   assertEquals(canonicalizeIsbn("9787544253994"), "9787544253994");
-  assertEquals(
-    canonicalizeIsbn("ISBN 978-7-5442-5399-4"),
-    "9787544253994",
-  );
+  assertEquals(canonicalizeIsbn("ISBN 978-7-5442-5399-4"), "9787544253994");
   // A cleaned value with an invalid check digit is compared as-is.
   assertEquals(canonicalizeIsbn("9780140328720"), "9780140328720");
 });
 
 Deno.test("identifier equality compares canonical forms", () => {
-  assertEquals(
-    canonicalIdentifierEquality("ABC 123", "abc123"),
-    true,
-  );
+  assertEquals(canonicalIdentifierEquality("ABC 123", "abc123"), true);
   assertEquals(
     canonicalIdentifierEquality("9780140328721", "978-0-14-032872-1"),
     true,
   );
-  assertEquals(
-    canonicalIdentifierEquality("ABC", "ABD"),
-    false,
-  );
+  assertEquals(canonicalIdentifierEquality("ABC", "ABD"), false);
 });

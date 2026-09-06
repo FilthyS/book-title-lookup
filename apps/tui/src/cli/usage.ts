@@ -105,19 +105,20 @@ function lookupOptions(command: "search" | "resolve" | "titles"): string {
 export function commandHelp(command: CommandName): string {
   if (command === "cache") return cacheCommandHelp();
   if (command === "config") return configCommandHelp();
-  const intro = command === "search"
-    ? "Find candidate works from a title query."
-    : command === "resolve"
-    ? "Resolve an ISBN or external reference to one work."
-    : "List attested titles of a resolved work.";
+  const intro =
+    command === "search"
+      ? "Find candidate works from a title query."
+      : command === "resolve"
+        ? "Resolve an ISBN or external reference to one work."
+        : "List attested titles of a resolved work.";
   return [
     line(
       `${APP_NAME} ${command} ${
         command === "resolve"
           ? "--isbn <text> | --reference <namespace>:<value>"
           : command === "titles"
-          ? "--reference <namespace>:<value>"
-          : "--title <text>"
+            ? "--reference <namespace>:<value>"
+            : "--title <text>"
       } [options]`,
     ),
     line(),
@@ -150,16 +151,13 @@ function cacheCommandHelp(): string {
 }
 
 export function cacheOperationHelp(operation: CacheOperation): string {
-  const usage = operation === "list"
-    ? `${APP_NAME} cache list [options]`
-    : operation === "show"
-    ? `${APP_NAME} cache show <digest> [options]`
-    : `${APP_NAME} cache clear [options]`;
-  return [
-    line(`Usage: ${usage}`),
-    line(),
-    cacheCommandHelp(),
-  ].join("");
+  const usage =
+    operation === "list"
+      ? `${APP_NAME} cache list [options]`
+      : operation === "show"
+        ? `${APP_NAME} cache show <digest> [options]`
+        : `${APP_NAME} cache clear [options]`;
+  return [line(`Usage: ${usage}`), line(), cacheCommandHelp()].join("");
 }
 
 function configCommandHelp(): string {

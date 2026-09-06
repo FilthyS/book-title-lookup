@@ -15,28 +15,20 @@ import {
   MemoryEnvironment,
 } from "../../../../packages/providers/src/platform/env.ts";
 import {
-  DenoFileSystemSeam,
+  NodeFileSystemSeam,
   type FileSystemSeam,
 } from "../../../../packages/providers/src/cache/fs-seam.ts";
 import { FixedClock } from "../../../../packages/providers/src/cache/clock.ts";
-import {
-  systemRandomSource,
-} from "../../../../packages/providers/src/cache/random.ts";
-import {
-  FileEntryStore,
-} from "../../../../packages/providers/src/cache/file-entry-store.ts";
+import { systemRandomSource } from "../../../../packages/providers/src/cache/random.ts";
+import { FileEntryStore } from "../../../../packages/providers/src/cache/file-entry-store.ts";
 import { computeCacheKey } from "../../../../packages/providers/src/cache/key.ts";
-import {
-  createEnvelope,
-} from "../../../../packages/providers/src/cache/envelope.ts";
+import { createEnvelope } from "../../../../packages/providers/src/cache/envelope.ts";
 import {
   canonicalPath,
   joinPath,
   styleFromPlatform,
 } from "../../../../packages/providers/src/platform/paths.ts";
-import {
-  detectPlatformKind,
-} from "../../../../packages/providers/src/platform/platform.ts";
+import { detectPlatformKind } from "../../../../packages/providers/src/platform/platform.ts";
 
 const FIXED = "2026-09-05T00:00:00.000Z";
 const VERSION_LINE = "book-title 0.1.0";
@@ -106,11 +98,13 @@ function defaultEnv(scratch: Scratch): MemoryEnvironment {
   return new MemoryEnvironment(platformEnv(scratch));
 }
 
-function makeDeps(options: {
-  readonly env?: EnvironmentReader;
-  readonly fs?: FileSystemSeam;
-  readonly signal?: AbortSignal;
-} = {}): {
+function makeDeps(
+  options: {
+    readonly env?: EnvironmentReader;
+    readonly fs?: FileSystemSeam;
+    readonly signal?: AbortSignal;
+  } = {},
+): {
   deps: CliDeps;
   stdout: { text(): string };
   stderr: { text(): string };
@@ -124,7 +118,7 @@ function makeDeps(options: {
       stdout,
       stderr,
       env: options.env ?? new MemoryEnvironment({}),
-      fs: options.fs ?? new DenoFileSystemSeam(),
+      fs: options.fs ?? new NodeFileSystemSeam(),
       platform,
       clock: new FixedClock(FIXED),
       random: systemRandomSource,
@@ -133,10 +127,7 @@ function makeDeps(options: {
   };
 }
 
-async function runCliOut(
-  args: string[],
-  deps: CliDeps,
-): Promise<RunResult> {
+async function runCliOut(args: string[], deps: CliDeps): Promise<RunResult> {
   const code = await runCli(args, deps);
   return {
     code,
@@ -157,7 +148,7 @@ async function seedCache(
   const store = new FileEntryStore({
     cacheRoot: root,
     clock: new FixedClock(FIXED),
-    fs: new DenoFileSystemSeam(),
+    fs: new NodeFileSystemSeam(),
     random: systemRandomSource,
     decoderSchemaVersions: { openlibrary: 1, wikidata: 1 },
     platform,
@@ -304,12 +295,10 @@ Deno.test("cli X15 relative --cache-dir is exit 2 with no stdout", async () => {
   const scratch = await makeScratch("x15");
   try {
     const { deps } = makeDeps({ env: defaultEnv(scratch) });
-    const run = await runCliOut([
-      "cache",
-      "list",
-      "--cache-dir",
-      "relative/path",
-    ], deps);
+    const run = await runCliOut(
+      ["cache", "list", "--cache-dir", "relative/path"],
+      deps,
+    );
     assertEquals(run.code, 2);
     assertEquals(run.stdout, "");
     assertMatch(run.stderr, /absolute path/);
@@ -461,8 +450,7 @@ Deno.test("cli C2 cache list is deterministic and sorted by digest", async () =>
     digests.push(
       await seedCache(scratch.cacheRoot, {
         provider: "wikidata",
-        url:
-          "https://www.wikidata.org/w/api.php?action=wbsearchentities&search=one",
+        url: "https://www.wikidata.org/w/api.php?action=wbsearchentities&search=one",
       }),
     );
 
@@ -751,10 +739,9 @@ Deno.test("cli G2 config precedence records cli > environment > config_file > de
   const scratch = await makeScratch("g2");
   try {
     // Write a config file carrying the lowest-precedence values.
-    await Deno.mkdir(
-      joinPath(style, scratch.configRoot, "book-title-lookup"),
-      { recursive: true },
-    );
+    await Deno.mkdir(joinPath(style, scratch.configRoot, "book-title-lookup"), {
+      recursive: true,
+    });
     await Deno.writeTextFile(
       joinPath(style, scratch.configRoot, "book-title-lookup", "config.json"),
       JSON.stringify({
@@ -833,10 +820,9 @@ Deno.test("cli G3 cache root origins are cli or environment and never config_fil
 Deno.test("cli G4 invalid config file is exit 2 with stderr and no JSON", async () => {
   const scratch = await makeScratch("g4");
   try {
-    await Deno.mkdir(
-      joinPath(style, scratch.configRoot, "book-title-lookup"),
-      { recursive: true },
-    );
+    await Deno.mkdir(joinPath(style, scratch.configRoot, "book-title-lookup"), {
+      recursive: true,
+    });
     await Deno.writeTextFile(
       joinPath(style, scratch.configRoot, "book-title-lookup", "config.json"),
       JSON.stringify({ schemaVersion: "config.v1", unknownKey: true }),
@@ -906,7 +892,7 @@ Deno.test("cli cache list human text matches the deterministic row shape", async
   }
 });
 
-class DenyCacheDirectoryFs extends DenoFileSystemSeam {
+class DenyCacheDirectoryFs extends NodeFileSystemSeam {
   #deniedRoot: string;
   constructor(deniedRoot: string) {
     super();

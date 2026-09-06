@@ -14,7 +14,7 @@ import {
   scriptedFetch,
 } from "../runtime/test-util.ts";
 import { epochMsOf, FixedClock } from "../cache/clock.ts";
-import { DenoFileSystemSeam } from "../cache/fs-seam.ts";
+import { NodeFileSystemSeam } from "../cache/fs-seam.ts";
 import { systemRandomSource } from "../cache/random.ts";
 import { FileEntryStore } from "../cache/file-entry-store.ts";
 import { detectPlatformKind } from "../platform/platform.ts";
@@ -59,7 +59,7 @@ Deno.test("offline search serves a stale cached page without network", async () 
     const store = new FileEntryStore({
       cacheRoot: scratch,
       clock,
-      fs: new DenoFileSystemSeam(),
+      fs: new NodeFileSystemSeam(),
       random: systemRandomSource,
       decoderSchemaVersions: PROVIDER_DECODER_SCHEMA_VERSIONS,
       platform: detectPlatformKind(Deno.build.os),
@@ -131,7 +131,7 @@ Deno.test("offline miss with no cache fails as source failure", async () => {
     const store = new FileEntryStore({
       cacheRoot: scratch,
       clock,
-      fs: new DenoFileSystemSeam(),
+      fs: new NodeFileSystemSeam(),
       random: systemRandomSource,
       decoderSchemaVersions: PROVIDER_DECODER_SCHEMA_VERSIONS,
       platform: detectPlatformKind(Deno.build.os),

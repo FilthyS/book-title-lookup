@@ -22,12 +22,17 @@ export interface LeveledAttestation {
 const ABSENT = "\u0000";
 
 function groupKeyOf(attestation: TitleAttestation): string {
-  const subtitleKey = attestation.subtitle === null
-    ? ABSENT
-    : normalizeTitleText(attestation.subtitle);
-  return attestation.language + "\u0000" +
+  const subtitleKey =
+    attestation.subtitle === null
+      ? ABSENT
+      : normalizeTitleText(attestation.subtitle);
+  return (
+    attestation.language +
+    "\u0000" +
     normalizeTitleText(attestation.text) +
-    "\u0000" + subtitleKey;
+    "\u0000" +
+    subtitleKey
+  );
 }
 
 function levelRank(level: EvidenceLevel): number {

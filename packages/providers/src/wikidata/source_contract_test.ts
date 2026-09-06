@@ -21,9 +21,7 @@ import { createWikidataCatalog } from "../federated/composition.ts";
 
 const CONTACT = "coordinator@example.com";
 
-function fixtureFetch(
-  onRequest?: (url: string) => void,
-): {
+function fixtureFetch(onRequest?: (url: string) => void): {
   fetch: typeof fetch;
   recorder: { urls: string[]; count(url: string): number; total: number };
 } {
@@ -84,7 +82,7 @@ Deno.test("wd search maps a zh work doc to found candidates", async () => {
   assertEquals(outcome.status, "found");
   if (outcome.status === "found") {
     const refs = outcome.candidates.map((candidate) =>
-      candidate.references.map((r) => `${r.namespace}:${r.value}`)
+      candidate.references.map((r) => `${r.namespace}:${r.value}`),
     );
     assert(
       refs.some((list) => list.includes("wikidata:item:Q151919")),
@@ -96,7 +94,7 @@ Deno.test("wd search maps a zh work doc to found candidates", async () => {
     "discovery ran",
   );
   const entityRead = recorder.urls.find((url) =>
-    url.includes("action=wbgetentities")
+    url.includes("action=wbgetentities"),
   );
   assert(entityRead !== undefined, "entity details were read");
   assertEquals(
@@ -113,7 +111,7 @@ Deno.test("wd search retries a traditional-script query in zh-Hant", async () =>
   assertEquals(outcome.status, "found");
   if (outcome.status === "found") {
     const refs = outcome.candidates.flatMap((candidate) =>
-      candidate.references.map((r) => `${r.namespace}:${r.value}`)
+      candidate.references.map((r) => `${r.namespace}:${r.value}`),
     );
     assert(
       refs.includes("wikidata:item:Q178869"),
@@ -154,14 +152,14 @@ Deno.test("wd resolve of a wikidata work is resolved with P648 identity", async 
   if (outcome.status !== "resolved") return;
   assertEquals(outcome.work.title, "活着");
   assert(
-    outcome.work.references.some((r) =>
-      r.namespace === "wikidata:item" && r.value === "Q151919"
+    outcome.work.references.some(
+      (r) => r.namespace === "wikidata:item" && r.value === "Q151919",
     ),
     "requested wikidata reference preserved",
   );
   assert(
-    outcome.work.references.some((r) =>
-      r.namespace === "openlibrary:work" && r.value === "OL12181913W"
+    outcome.work.references.some(
+      (r) => r.namespace === "openlibrary:work" && r.value === "OL12181913W",
     ),
     "P648 Open Library work reference joins the resolved identity",
   );
@@ -184,7 +182,10 @@ Deno.test("wd findTitles attests a verified zh edition title (活着 corpus)", a
   if (titles.status !== "found") return;
   const zh = titles.groups.filter((g) => g.language === "zh");
   assert(zh.length >= 1, "a zh title group exists");
-  assert(zh.some((g) => g.title === "活着"), "the zh edition title attests");
+  assert(
+    zh.some((g) => g.title === "活着"),
+    "the zh edition title attests",
+  );
   assert(
     zh.some((g) => g.level === "verified"),
     "the direct-relation edition title is verified",
@@ -207,14 +208,14 @@ Deno.test("wd work-level original title alone stays probable, never verified", a
   });
   assertEquals(titles.status, "found");
   if (titles.status !== "found") return;
-  const fr = titles.groups.filter((g) =>
-    g.language === "fr" && g.title === "Le Petit Prince"
+  const fr = titles.groups.filter(
+    (g) => g.language === "fr" && g.title === "Le Petit Prince",
   );
   assert(fr.length === 1, "work-level original title forms a group");
   assertEquals(fr[0].level, "probable");
   assert(
-    fr[0].attestations.every((attestation) =>
-      attestation.role === "work_original_title"
+    fr[0].attestations.every(
+      (attestation) => attestation.role === "work_original_title",
     ),
     "the group is backed only by the Work statement",
   );

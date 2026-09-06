@@ -27,9 +27,11 @@ export function decodeUtf8Fatal(bytes: Uint8Array): string | null {
 function isJsonContentType(contentType: string): boolean {
   const lower = contentType.toLowerCase();
   const media = lower.split(";")[0].trim();
-  return media === "application/json" ||
+  return (
+    media === "application/json" ||
     media === "text/json" ||
-    media.endsWith("+json");
+    media.endsWith("+json")
+  );
 }
 
 /**
@@ -43,8 +45,8 @@ export function parseJsonEnvelope(env: {
   const text = decodeUtf8Fatal(env.body);
   if (text === null) return { ok: false, reason: "invalid_utf8" };
   const contentType = env.contentType?.toLowerCase() ?? "";
-  const bodyStartsJson = text.trimStart().startsWith("{") ||
-    text.trimStart().startsWith("[");
+  const bodyStartsJson =
+    text.trimStart().startsWith("{") || text.trimStart().startsWith("[");
   if (contentType !== "") {
     if (!isJsonContentType(contentType)) {
       return { ok: false, reason: "non_json_content_type" };

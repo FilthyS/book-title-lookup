@@ -1,5 +1,9 @@
 # npm Release Topology
 
+> [!NOTE]
+> This platform-package design is retained as a historical record. ADR 0004
+> superseded it with one bundled Node.js package and no optional dependencies.
+
 Frozen design deliverable for GitHub issue #11. It turns the validated npm
 distribution mechanics from the issue #4 research document
 ([docs/research/npm-binary-distribution.md](../research/npm-binary-distribution.md))

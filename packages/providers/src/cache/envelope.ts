@@ -260,7 +260,8 @@ export async function validateEnvelopeForRead(
   }
   const current = options.decoderSchemaVersions[envelope.request.provider];
   if (
-    current === undefined || envelope.request.decoderSchemaVersion !== current
+    current === undefined ||
+    envelope.request.decoderSchemaVersion !== current
   ) {
     return { ok: false, reason: "decoder_schema_version" };
   }

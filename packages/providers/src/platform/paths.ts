@@ -5,7 +5,7 @@
  * siblings such as `cache-evil`.
  *
  * The helpers are style-parameterized so fixture runs can exercise Windows
- * and POSIX semantics on any host. Runtime paths handed to Deno stay in the
+ * and POSIX semantics on any host. Runtime paths handed to Node stay in the
  * platform's native shape.
  */
 
@@ -90,8 +90,12 @@ function canonicalWindows(input: string): string {
 
 export function isAbsolutePath(path: string, style: PathStyle): boolean {
   if (style === "windows") {
-    return /^[A-Za-z]:[\\/]/.test(path) || path.startsWith("\\\\") ||
-      path.startsWith("/") || path.startsWith("\\");
+    return (
+      /^[A-Za-z]:[\\/]/.test(path) ||
+      path.startsWith("\\\\") ||
+      path.startsWith("/") ||
+      path.startsWith("\\")
+    );
   }
   return path.startsWith("/");
 }

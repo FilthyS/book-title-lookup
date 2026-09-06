@@ -1,12 +1,10 @@
 /**
  * Closed environment surface (issue #5 D6, issue #10 section 16.1).
  *
- * Every environment variable any code may read is named by the single
- * ENV_ALLOWLIST constant. The permission manifest for `deno run`, tests, and
- * compile flags is derived from the same constant so runtime reads and grants
- * cannot drift (verified by the permission-manifest drift test). Reads use
- * only `Deno.env.get(name)` through EnvironmentReader; `Deno.env.toObject()`
- * is never used.
+ * Every environment variable application code may read is named by the single
+ * ENV_ALLOWLIST constant. Node does not enforce this list as a runtime
+ * permission boundary; the narrow reader remains the first-party source of
+ * truth and keeps unrestricted `process.env` access out of domain code.
  */
 
 export const ENV_ALLOWLIST = [
@@ -29,10 +27,10 @@ export type EnvName = (typeof ENV_ALLOWLIST)[number];
 export type EnvReadResult =
   | { readonly ok: true; readonly value: string | undefined }
   | {
-    readonly ok: false;
-    readonly error: "permission_denied";
-    readonly name: EnvName;
-  };
+      readonly ok: false;
+      readonly error: "permission_denied";
+      readonly name: EnvName;
+    };
 
 export interface EnvironmentReader {
   read(name: EnvName): EnvReadResult;
@@ -43,20 +41,13 @@ export function isAllowlistedEnvName(name: string): name is EnvName {
 }
 
 /**
- * Production reader over the real process environment. A missing permission
- * grant maps to the typed permission_denied failure the settings and locator
- * seams report; it is never a thrown stack trace.
+ * Production reader over the real process environment. Normal Node environment
+ * reads do not produce permission failures; the result union remains because
+ * injected readers use it to verify typed failure handling.
  */
 export const systemEnvironment: EnvironmentReader = {
   read(name: EnvName): EnvReadResult {
-    try {
-      return { ok: true, value: Deno.env.get(name) };
-    } catch (error) {
-      if (error instanceof Deno.errors.PermissionDenied) {
-        return { ok: false, error: "permission_denied", name };
-      }
-      throw error;
-    }
+    return { ok: true, value: process.env[name] };
   },
 };
 

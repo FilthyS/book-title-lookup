@@ -27,8 +27,11 @@ export function isRetryableServerStatus(status: number): boolean {
 /** True when an HTTP status is a retryable redirect. */
 export function isRedirectStatus(status: number): boolean {
   return (
-    status === 301 || status === 302 || status === 303 ||
-    status === 307 || status === 308
+    status === 301 ||
+    status === 302 ||
+    status === 303 ||
+    status === 307 ||
+    status === 308
   );
 }
 

@@ -328,9 +328,7 @@ function editionsPagePlan(
   offset: number,
   limit: number,
 ): RequestPlan<unknown> {
-  const url = new URL(
-    `${BASE_URL}/works/${workReference.value}/editions.json`,
-  );
+  const url = new URL(`${BASE_URL}/works/${workReference.value}/editions.json`);
   url.searchParams.set("offset", String(offset));
   url.searchParams.set("limit", String(limit));
   return {
@@ -375,9 +373,10 @@ function withRequestedReference(
   record: SourceRecord,
   requested: ExternalReference,
 ): SourceRecord {
-  const alreadyPresent = record.refs.some((reference) =>
-    reference.namespace === requested.namespace &&
-    reference.value === requested.value
+  const alreadyPresent = record.refs.some(
+    (reference) =>
+      reference.namespace === requested.namespace &&
+      reference.value === requested.value,
   );
   if (alreadyPresent) return record;
   return { ...record, refs: [requested, ...record.refs] };

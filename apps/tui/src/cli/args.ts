@@ -56,30 +56,30 @@ export type Invocation =
   | { readonly mode: "version" }
   | { readonly mode: "no_command"; readonly global: GlobalFlags }
   | {
-    readonly mode: "lookup";
-    readonly command: "search";
-    readonly query: SearchQueryOptions;
-    readonly global: GlobalFlags;
-  }
+      readonly mode: "lookup";
+      readonly command: "search";
+      readonly query: SearchQueryOptions;
+      readonly global: GlobalFlags;
+    }
   | {
-    readonly mode: "lookup";
-    readonly command: "resolve";
-    readonly target: ResolveTargetOptions;
-    readonly global: GlobalFlags;
-  }
+      readonly mode: "lookup";
+      readonly command: "resolve";
+      readonly target: ResolveTargetOptions;
+      readonly global: GlobalFlags;
+    }
   | {
-    readonly mode: "lookup";
-    readonly command: "titles";
-    readonly reference: ExternalReference;
-    readonly languages: readonly LanguageTag[];
-    readonly global: GlobalFlags;
-  }
+      readonly mode: "lookup";
+      readonly command: "titles";
+      readonly reference: ExternalReference;
+      readonly languages: readonly LanguageTag[];
+      readonly global: GlobalFlags;
+    }
   | {
-    readonly mode: "cache";
-    readonly operation: CacheOperation;
-    readonly digest?: string;
-    readonly global: GlobalFlags;
-  }
+      readonly mode: "cache";
+      readonly operation: CacheOperation;
+      readonly digest?: string;
+      readonly global: GlobalFlags;
+    }
   | { readonly mode: "config"; readonly global: GlobalFlags };
 
 export type ParseResult =
@@ -126,13 +126,12 @@ const GLOBAL_OPTIONS: Readonly<
   "--version": { value: "none" },
 };
 
-const PER_COMMAND_OPTIONS: Readonly<
-  Record<LookupCommand, readonly string[]>
-> = {
-  search: ["--title", "--author", "--isbn", "--year", "--language"],
-  resolve: ["--isbn", "--reference"],
-  titles: ["--reference", "--language"],
-};
+const PER_COMMAND_OPTIONS: Readonly<Record<LookupCommand, readonly string[]>> =
+  {
+    search: ["--title", "--author", "--isbn", "--year", "--language"],
+    resolve: ["--isbn", "--reference"],
+    titles: ["--reference", "--language"],
+  };
 
 const REPEATABLE_OPTIONS: ReadonlySet<string> = new Set(["--language"]);
 
@@ -177,7 +176,8 @@ function findHelpScope(argv: readonly string[]): HelpScope {
       continue;
     }
     if (
-      subcommand === undefined && (command === "cache" || command === "config")
+      subcommand === undefined &&
+      (command === "cache" || command === "config")
     ) {
       subcommand = token;
     }
@@ -196,16 +196,12 @@ function findHelpScope(argv: readonly string[]): HelpScope {
   return { kind: "command", command };
 }
 
-interface ParsedCommandValues {
-  readonly values: Readonly<Record<string, string | readonly string[]>>;
-}
-
-function parseReference(
-  raw: string,
-): { readonly ok: true; readonly reference: ExternalReference } | {
-  readonly ok: false;
-  readonly error: string;
-} {
+function parseReference(raw: string):
+  | { readonly ok: true; readonly reference: ExternalReference }
+  | {
+      readonly ok: false;
+      readonly error: string;
+    } {
   const lastColon = raw.lastIndexOf(":");
   if (lastColon <= 0 || lastColon === raw.length - 1) {
     return {
@@ -273,7 +269,8 @@ export function parseArgs(argv: readonly string[]): ParseResult {
       const inlineValue = eq === -1 ? undefined : token.slice(eq + 1);
 
       const globalDef = GLOBAL_OPTIONS[name];
-      const perCommandAllowed = command !== undefined &&
+      const perCommandAllowed =
+        command !== undefined &&
         isLookupCommand(command) &&
         PER_COMMAND_OPTIONS[command].includes(name);
 
@@ -537,19 +534,18 @@ function isValidIsbnSyntax(raw: string): boolean {
   return false;
 }
 
-function validateLanguages(
-  raw: readonly string[],
-): { readonly ok: true; readonly value: readonly LanguageTag[] } | {
-  readonly ok: false;
-  readonly error: string;
-} {
+function validateLanguages(raw: readonly string[]):
+  | { readonly ok: true; readonly value: readonly LanguageTag[] }
+  | {
+      readonly ok: false;
+      readonly error: string;
+    } {
   const out: LanguageTag[] = [];
   for (const tag of raw) {
     if (!isValidRequestedLanguage(tag)) {
       return {
         ok: false,
-        error:
-          `invalid language tag: '${tag}' (sentinels und/mul cannot be requested)`,
+        error: `invalid language tag: '${tag}' (sentinels und/mul cannot be requested)`,
       };
     }
     out.push(canonicalizeBcp47(tag) as LanguageTag);

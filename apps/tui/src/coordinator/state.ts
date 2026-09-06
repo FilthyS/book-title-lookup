@@ -102,10 +102,10 @@ export interface Notice {
 
 export type ResolveOrigin =
   | {
-    readonly station: "candidates";
-    readonly pool: CandidatePool;
-    readonly selected: number;
-  }
+      readonly station: "candidates";
+      readonly pool: CandidatePool;
+      readonly selected: number;
+    }
   | { readonly station: "query" };
 
 export interface ResolvedSnapshot {
@@ -144,9 +144,9 @@ export interface ResolvingState extends SessionBase {
   readonly target:
     | { readonly kind: "candidate"; readonly ref: CandidateRef }
     | {
-      readonly kind: "externalReference";
-      readonly reference: ExternalReference;
-    };
+        readonly kind: "externalReference";
+        readonly reference: ExternalReference;
+      };
   readonly requestId: string | null;
 }
 

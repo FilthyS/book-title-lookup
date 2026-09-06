@@ -1,8 +1,11 @@
 ---
-status: accepted
+status: superseded by ADR 0004
 ---
 
 # Distribute precompiled Deno binaries through npm
+
+> Superseded by
+> [ADR 0004: Use Node.js as the only runtime](./0004-use-node-as-the-only-runtime.md).
 
 npm is the primary installation channel, but Deno remains the application
 runtime. A small npm launcher selects an OS- and architecture-specific optional

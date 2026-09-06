@@ -130,8 +130,10 @@ export function messageForToken(
     case "text":
       if (
         (token.value === "n" || token.value === "N") &&
-        (state.screen === "candidates" || state.screen === "resolved" ||
-          state.screen === "titles" || state.screen === "group_detail")
+        (state.screen === "candidates" ||
+          state.screen === "resolved" ||
+          state.screen === "titles" ||
+          state.screen === "group_detail")
       ) {
         return { type: "newSearch" };
       }
@@ -189,8 +191,8 @@ class InteractiveSession {
       // acquire is inside the guarded scope so a partial acquire is still
       // restored by release() in the finally block (issue #13 section 13.3).
       await this.#terminal.acquire();
-      this.#stopWatchingSize = this.#io.watchSize?.(() => this.#paint()) ??
-        null;
+      this.#stopWatchingSize =
+        this.#io.watchSize?.(() => this.#paint()) ?? null;
       this.#paint();
       while (this.#exitCode === undefined) {
         const event = await this.#nextEvent();
@@ -226,8 +228,8 @@ class InteractiveSession {
     if (this.#interruptQueued) return Promise.resolve("interrupt");
     if (this.#outcomes.length > 0) return Promise.resolve("outcome");
     if (this.#tokens.length > 0) return Promise.resolve("token");
-    const interruptP = this.#waitForInterrupt().then(() =>
-      "interrupt" as const
+    const interruptP = this.#waitForInterrupt().then(
+      () => "interrupt" as const,
     );
     if (this.#inputEnded) {
       // Only outcomes or an external signal can still arrive.
@@ -266,10 +268,7 @@ class InteractiveSession {
         const next = await Promise.race([
           read.then((value) => ({ kind: "read" as const, value })),
           new Promise<{ readonly kind: "timeout" }>((resolve) =>
-            setTimeout(
-              () => resolve({ kind: "timeout" }),
-              ESCAPE_AMBIGUITY_MS,
-            )
+            setTimeout(() => resolve({ kind: "timeout" }), ESCAPE_AMBIGUITY_MS),
           ),
         ]);
         if (next.kind === "timeout") {
@@ -409,25 +408,26 @@ class InteractiveSession {
       }));
     }
     if (effect.kind === "resolve") {
-      const target = effect.target.kind === "candidate"
-        ? { kind: "candidate" as const, ref: effect.target.ref as never }
-        : {
-          kind: "externalReference" as const,
-          reference: effect.target.reference,
-        };
+      const target =
+        effect.target.kind === "candidate"
+          ? { kind: "candidate" as const, ref: effect.target.ref as never }
+          : {
+              kind: "externalReference" as const,
+              reference: effect.target.reference,
+            };
       return this.#catalog.resolve(target, options).then((outcome) => ({
         type: "resolveOutcome" as const,
         requestId,
         outcome,
       }));
     }
-    return this.#catalog.findTitles(effect.workRef, effect.query, options).then(
-      (outcome) => ({
+    return this.#catalog
+      .findTitles(effect.workRef, effect.query, options)
+      .then((outcome) => ({
         type: "titlesOutcome" as const,
         requestId,
         outcome,
-      }),
-    );
+      }));
   }
 
   #enqueueOutcome(message: Message): void {
@@ -471,7 +471,8 @@ class InteractiveSession {
       return;
     }
     if (
-      token.kind === "enter" && this.#state.screen === "titles" &&
+      token.kind === "enter" &&
+      this.#state.screen === "titles" &&
       this.#state.payload.groups[this.#groupSelection] !== undefined
     ) {
       this.#dispatch({
@@ -495,15 +496,14 @@ class InteractiveSession {
     const frame = renderFrame(this.#state, size, selection)
       .map((line) => padTo(line, size.columns))
       .join("\r\n");
-    const cursor = this.#state.screen === "query" && !isTooSmall(size)
-      ? moveCursorTo(
-        QUERY_CURSOR_ROW,
-        Math.min(size.columns - 1, cursorColumn(this.#state) + 1),
-      ) + ANSI.cursorShow
-      : "";
-    void this.#io.write(
-      ANSI.cursorHide + ANSI.clearScreen + frame + cursor,
-    );
+    const cursor =
+      this.#state.screen === "query" && !isTooSmall(size)
+        ? moveCursorTo(
+            QUERY_CURSOR_ROW,
+            Math.min(size.columns - 1, cursorColumn(this.#state) + 1),
+          ) + ANSI.cursorShow
+        : "";
+    void this.#io.write(ANSI.cursorHide + ANSI.clearScreen + frame + cursor);
   }
 }
 

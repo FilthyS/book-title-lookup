@@ -4,6 +4,8 @@
  * they are injected so fixture tests are deterministic.
  */
 
+import { randomBytes, randomInt } from "node:crypto";
+
 export interface RandomSource {
   /** Returns a lowercase hex string of `bytes` random bytes. */
   hex(bytes: number): string;
@@ -11,23 +13,13 @@ export interface RandomSource {
   int(maxExclusive: number): number;
 }
 
-const HEX_ALPHABET = "0123456789abcdef";
-
 export const systemRandomSource: RandomSource = {
   hex(bytes: number): string {
-    const values = new Uint8Array(bytes);
-    crypto.getRandomValues(values);
-    let out = "";
-    for (const v of values) {
-      out += HEX_ALPHABET[v >> 4] + HEX_ALPHABET[v & 0x0f];
-    }
-    return out;
+    return randomBytes(bytes).toString("hex");
   },
   int(maxExclusive: number): number {
     if (maxExclusive <= 0) return 0;
-    const values = new Uint32Array(1);
-    crypto.getRandomValues(values);
-    return values[0] % maxExclusive;
+    return randomInt(maxExclusive);
   },
 };
 

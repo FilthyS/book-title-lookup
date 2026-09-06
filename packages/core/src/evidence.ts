@@ -19,78 +19,78 @@ export type Rank = "preferred" | "normal" | "deprecated";
  *  Wikidata provenance where applicable. */
 export type Claim =
   | {
-    readonly type: "title";
-    readonly text: string;
-    /** Explicit title-level language tag when the source records one
-     *  (Wikidata P1476 monolingual text). */
-    readonly language?: LanguageTag;
-    readonly statementId?: string;
-    readonly rank?: Rank;
-  }
+      readonly type: "title";
+      readonly text: string;
+      /** Explicit title-level language tag when the source records one
+       *  (Wikidata P1476 monolingual text). */
+      readonly language?: LanguageTag;
+      readonly statementId?: string;
+      readonly rank?: Rank;
+    }
   | {
-    readonly type: "subtitle";
-    readonly text: string;
-    readonly statementId?: string;
-    readonly rank?: Rank;
-  }
+      readonly type: "subtitle";
+      readonly text: string;
+      readonly statementId?: string;
+      readonly rank?: Rank;
+    }
   | { readonly type: "content-language"; readonly language: LanguageTag }
   | {
-    readonly type: "title-language";
-    readonly language: LanguageTag;
-    readonly statementId?: string;
-  }
+      readonly type: "title-language";
+      readonly language: LanguageTag;
+      readonly statementId?: string;
+    }
   | { readonly type: "translated-from"; readonly language: LanguageTag }
   | {
-    readonly type: "work-link";
-    readonly reference: ExternalReference;
-    readonly statementId?: string;
-    readonly rank?: Rank;
-  }
+      readonly type: "work-link";
+      readonly reference: ExternalReference;
+      readonly statementId?: string;
+      readonly rank?: Rank;
+    }
   | {
-    readonly type: "original-title";
-    readonly text: string;
-    readonly language?: LanguageTag;
-    /** Source field family: translation_of | work_titles | other_titles. */
-    readonly kind?: string;
-    readonly statementId?: string;
-  }
+      readonly type: "original-title";
+      readonly text: string;
+      readonly language?: LanguageTag;
+      /** Source field family: translation_of | work_titles | other_titles. */
+      readonly kind?: string;
+      readonly statementId?: string;
+    }
   | {
-    readonly type: "author";
-    readonly name: string;
-    readonly reference?: ExternalReference;
-  }
+      readonly type: "author";
+      readonly name: string;
+      readonly reference?: ExternalReference;
+    }
   | {
-    readonly type: "translator";
-    readonly name: string;
-    readonly reference?: ExternalReference;
-  }
+      readonly type: "translator";
+      readonly name: string;
+      readonly reference?: ExternalReference;
+    }
   | { readonly type: "publisher"; readonly name: string }
   | { readonly type: "publication-year"; readonly year: number }
   | { readonly type: "publication-date"; readonly value: string }
   | {
-    readonly type: "identifier";
-    readonly namespace: string;
-    readonly value: string;
-    readonly statementId?: string;
-    readonly rank?: Rank;
-  }
+      readonly type: "identifier";
+      readonly namespace: string;
+      readonly value: string;
+      readonly statementId?: string;
+      readonly rank?: Rank;
+    }
   | {
-    readonly type: "class";
-    readonly value: string;
-    readonly statementId?: string;
-    readonly rank?: Rank;
-  }
+      readonly type: "class";
+      readonly value: string;
+      readonly statementId?: string;
+      readonly rank?: Rank;
+    }
   | {
-    readonly type: "edition-type";
-    readonly value:
-      | "abridged"
-      | "excerpted"
-      | "summarized"
-      | "adaptation"
-      | "collection"
-      | "periodical"
-      | "non-text";
-  }
+      readonly type: "edition-type";
+      readonly value:
+        | "abridged"
+        | "excerpted"
+        | "summarized"
+        | "adaptation"
+        | "collection"
+        | "periodical"
+        | "non-text";
+    }
   | { readonly type: "page-count"; readonly pages: number };
 
 /** A matched search text that surfaced a record (label, alias, snippet).
@@ -194,8 +194,8 @@ export function openLibraryWorkIdentifier(
 export function titleClaims(
   record: SourceRecord,
 ): Extract<Claim, { readonly type: "title" }>[] {
-  return claimsOfType(record, "title").filter((claim) =>
-    claim.rank !== "deprecated"
+  return claimsOfType(record, "title").filter(
+    (claim) => claim.rank !== "deprecated",
   );
 }
 

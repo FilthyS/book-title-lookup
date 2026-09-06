@@ -65,7 +65,7 @@ function validateNode(
       return { ok: false, error: `${path}: expected ${schema.type}` };
     }
   }
-  if (schema.type === "object" || (schema.properties !== undefined)) {
+  if (schema.type === "object" || schema.properties !== undefined) {
     if (typeof value !== "object" || value === null || Array.isArray(value)) {
       return schema.type === "object" && typeof value !== "object"
         ? { ok: false, error: `${path}: expected object` }
@@ -149,8 +149,9 @@ function typeMatches(type: string, value: JsonValue): boolean {
     case "boolean":
       return typeof value === "boolean";
     case "object":
-      return typeof value === "object" && value !== null &&
-        !Array.isArray(value);
+      return (
+        typeof value === "object" && value !== null && !Array.isArray(value)
+      );
     case "array":
       return Array.isArray(value);
     case "null":
@@ -178,9 +179,9 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   return false;
 }
 
-export async function loadSchema(
-  schemaUrl: string | URL,
-): Promise<Schema> {
-  const text = await Deno.readTextFile(schemaUrl);
+import { readFile } from "node:fs/promises";
+
+export async function loadSchema(schemaUrl: string | URL): Promise<Schema> {
+  const text = await readFile(schemaUrl, "utf8");
   return JSON.parse(text) as Schema;
 }

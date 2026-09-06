@@ -151,9 +151,15 @@ Deno.test("finalizeGroups reports no_attested_titles when no default group satis
   const groups = rawGroups();
   const result = finalizeGroups(groups, ["zh-Hant"], undefined);
   assertEquals(result.status, "no_attested_titles");
-  assertEquals(result.groups.some((group) => group.recommended), false);
+  assertEquals(
+    result.groups.some((group) => group.recommended),
+    false,
+  );
   // Ambiguous/und evidence stays listed.
-  assertEquals(result.groups.some((group) => group.language === "und"), true);
+  assertEquals(
+    result.groups.some((group) => group.language === "und"),
+    true,
+  );
 });
 
 Deno.test("recommendation never survives a tie (total comparator)", () => {

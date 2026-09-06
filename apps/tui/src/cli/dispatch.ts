@@ -42,28 +42,14 @@ import { resolveSettings, type SettingsFailure } from "../settings/resolver.ts";
 import { buildComposedCatalog } from "../catalog/composed-catalog.ts";
 import { PROVIDER_DECODER_SCHEMA_VERSIONS } from "../../../../packages/providers/src/openlibrary/config.ts";
 import { documentForSummary } from "./json.ts";
-import type {
-  EnvironmentReader,
-} from "../../../../packages/providers/src/platform/env.ts";
-import type {
-  FileSystemSeam,
-} from "../../../../packages/providers/src/cache/fs-seam.ts";
-import type {
-  PlatformKind,
-} from "../../../../packages/providers/src/platform/platform.ts";
+import type { EnvironmentReader } from "../../../../packages/providers/src/platform/env.ts";
+import type { FileSystemSeam } from "../../../../packages/providers/src/cache/fs-seam.ts";
+import type { PlatformKind } from "../../../../packages/providers/src/platform/platform.ts";
 import type { Clock } from "../../../../packages/providers/src/cache/clock.ts";
-import type {
-  RandomSource,
-} from "../../../../packages/providers/src/cache/random.ts";
-import {
-  FileEntryStore,
-} from "../../../../packages/providers/src/cache/file-entry-store.ts";
-import type {
-  CacheShowOutcome,
-} from "../../../../packages/providers/src/cache/store.ts";
-import type {
-  RawResponseEnvelopeV1,
-} from "../../../../packages/providers/src/cache/envelope.ts";
+import type { RandomSource } from "../../../../packages/providers/src/cache/random.ts";
+import { FileEntryStore } from "../../../../packages/providers/src/cache/file-entry-store.ts";
+import type { CacheShowOutcome } from "../../../../packages/providers/src/cache/store.ts";
+import type { RawResponseEnvelopeV1 } from "../../../../packages/providers/src/cache/envelope.ts";
 import type {
   BookTitleCatalog,
   ExternalReference,
@@ -86,7 +72,7 @@ export interface TextWriter {
 }
 
 /** Terminal seam for the interactive (no-command) TUI mode (issue #12 section
- *  3.1). Present only when main.ts can supply real Deno terminal streams. */
+ *  3.1). Present only when main.ts can supply real terminal streams. */
 export interface TuiDeps {
   readonly stdinIsTty: boolean;
   readonly stdoutIsTty: boolean;
@@ -177,10 +163,7 @@ async function dispatch(
 // ---------------------------------------------------------------------------
 
 /** Whether this no-command invocation should start the interactive TUI. */
-export function isTuiMode(
-  global: GlobalFlags,
-  deps: CliDeps,
-): boolean {
+export function isTuiMode(global: GlobalFlags, deps: CliDeps): boolean {
   if (global.json) return false;
   const tui = deps.tui;
   if (tui === undefined) return false;
@@ -223,10 +206,7 @@ async function runLookup(
     // CLI runs use the real two-source composition below.
     catalog = deps.catalog;
   } else {
-    const resolved = await createDefaultLookupCatalog(
-      invocation.global,
-      deps,
-    );
+    const resolved = await createDefaultLookupCatalog(invocation.global, deps);
     if (!resolved.ok) return resolved.code;
     catalog = resolved.catalog;
   }
@@ -248,8 +228,10 @@ async function runLookup(
     await deps.stdout.write(humanTextForSummary(summary));
   }
   if (
-    summary.status === "found" || summary.status === "needs_choice" ||
-    summary.status === "resolved" || summary.status === "not_found" ||
+    summary.status === "found" ||
+    summary.status === "needs_choice" ||
+    summary.status === "resolved" ||
+    summary.status === "not_found" ||
     summary.status === "titles_found" ||
     summary.status === "no_attested_titles"
   ) {
@@ -586,11 +568,13 @@ type FailureOutcome =
   | { readonly status: "permission_denied"; readonly path: string }
   | { readonly status: "unsupported_environment" };
 
-function isFailureOutcome(
-  value: { readonly status: string },
-): value is FailureOutcome {
-  return value.status === "permission_denied" ||
-    value.status === "unsupported_environment";
+function isFailureOutcome(value: {
+  readonly status: string;
+}): value is FailureOutcome {
+  return (
+    value.status === "permission_denied" ||
+    value.status === "unsupported_environment"
+  );
 }
 
 async function cacheFailureExit(
@@ -600,12 +584,11 @@ async function cacheFailureExit(
 ): Promise<number> {
   if (outcome.status === "cancelled") return await exitCancelled(deps, cancel);
   if (isFailureOutcome(outcome)) {
-    const detail = outcome.status === "permission_denied"
-      ? `permission denied: ${outcome.path}`
-      : "unsupported environment";
-    await deps.stderr.write(
-      usageErrorText(`cannot access cache: ${detail}`),
-    );
+    const detail =
+      outcome.status === "permission_denied"
+        ? `permission denied: ${outcome.path}`
+        : "unsupported environment";
+    await deps.stderr.write(usageErrorText(`cannot access cache: ${detail}`));
     return 2;
   }
   await deps.stderr.write(usageErrorText("cache operation failed"));
@@ -618,11 +601,12 @@ async function settingsFailureExit(
   cancel: CancelShape,
 ): Promise<number> {
   if (failure.kind === "cancelled") return await exitCancelled(deps, cancel);
-  const text = failure.kind === "invalid_config"
-    ? `invalid configuration: ${failure.detail}`
-    : failure.kind === "permission_denied"
-    ? `permission denied: ${failure.detail}`
-    : `unsupported environment: ${failure.detail}`;
+  const text =
+    failure.kind === "invalid_config"
+      ? `invalid configuration: ${failure.detail}`
+      : failure.kind === "permission_denied"
+        ? `permission denied: ${failure.detail}`
+        : `unsupported environment: ${failure.detail}`;
   await deps.stderr.write(usageErrorText(text));
   return 2;
 }

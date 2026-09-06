@@ -8,31 +8,19 @@
 
 import { assert, assertEquals, assertMatch } from "@std/assert";
 import { type CliDeps, runCli } from "./dispatch.ts";
-import {
-  MemoryEnvironment,
-} from "../../../../packages/providers/src/platform/env.ts";
-import {
-  DenoFileSystemSeam,
-} from "../../../../packages/providers/src/cache/fs-seam.ts";
+import { MemoryEnvironment } from "../../../../packages/providers/src/platform/env.ts";
+import { NodeFileSystemSeam } from "../../../../packages/providers/src/cache/fs-seam.ts";
 import { FixedClock } from "../../../../packages/providers/src/cache/clock.ts";
-import {
-  systemRandomSource,
-} from "../../../../packages/providers/src/cache/random.ts";
-import {
-  detectPlatformKind,
-} from "../../../../packages/providers/src/platform/platform.ts";
+import { systemRandomSource } from "../../../../packages/providers/src/cache/random.ts";
+import { detectPlatformKind } from "../../../../packages/providers/src/platform/platform.ts";
 import { ProviderRuntime } from "../../../../packages/providers/src/runtime/runtime.ts";
 import {
   FakeEffects,
   MemoryCache,
   scriptedFetch,
 } from "../../../../packages/providers/src/runtime/test-util.ts";
-import {
-  findOpenLibraryFixture,
-} from "../../../../fixtures/providers/openlibrary/fixtures.ts";
-import {
-  openLibraryRuntimeConfig,
-} from "../../../../packages/providers/src/openlibrary/config.ts";
+import { findOpenLibraryFixture } from "../../../../fixtures/providers/openlibrary/fixtures.ts";
+import { openLibraryRuntimeConfig } from "../../../../packages/providers/src/openlibrary/config.ts";
 import { createOpenLibraryCatalog } from "../../../../packages/providers/src/federated/composition.ts";
 import { loadSchema, validateAgainstSchema } from "../json/schema-validate.ts";
 
@@ -102,7 +90,7 @@ function makeRealCatalogDeps(): {
       stdout,
       stderr,
       env: new MemoryEnvironment({}),
-      fs: new DenoFileSystemSeam(),
+      fs: new NodeFileSystemSeam(),
       platform: detectPlatformKind(Deno.build.os),
       clock: new FixedClock("2026-09-05T00:00:00.000Z"),
       random: systemRandomSource,

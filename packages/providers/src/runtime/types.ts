@@ -114,10 +114,13 @@ export interface RuntimeOperation {
 
 /** The opaque cache seam the runtime consults. */
 export interface RuntimeCachePort {
-  read(key: CacheKey, options: {
-    readonly mode: "online" | "offline";
-    readonly signal?: AbortSignal;
-  }): Promise<CacheReadOutcomeForRuntime>;
+  read(
+    key: CacheKey,
+    options: {
+      readonly mode: "online" | "offline";
+      readonly signal?: AbortSignal;
+    },
+  ): Promise<CacheReadOutcomeForRuntime>;
   write(
     key: CacheKey,
     envelope: RawResponseEnvelopeV1,
@@ -128,10 +131,10 @@ export interface RuntimeCachePort {
 export type CacheReadOutcomeForRuntime =
   | { readonly status: "hit_fresh"; readonly envelope: RawResponseEnvelopeV1 }
   | {
-    readonly status: "hit_stale";
-    readonly envelope: RawResponseEnvelopeV1;
-    readonly staleSince: string;
-  }
+      readonly status: "hit_stale";
+      readonly envelope: RawResponseEnvelopeV1;
+      readonly staleSince: string;
+    }
   | { readonly status: "miss" }
   | { readonly status: "corrupt"; readonly quarantinedTo?: string }
   | { readonly status: "permission_denied"; readonly path: string }

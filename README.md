@@ -11,35 +11,41 @@ editions in other languages.
 
 ## Quick start
 
-[Deno 2.9 or newer](https://docs.deno.com/runtime/getting_started/installation/)
-is required.
+[Node.js 22 or newer](https://nodejs.org/) is required. Install the CLI from
+npm; the package contains the complete application and has no runtime
+dependencies or install scripts:
 
 ```console
-git clone https://github.com/FilthyS/book-title-lookup.git
-cd book-title-lookup
-deno task start
+npm install --global book-title-lookup
+book-title
 ```
 
 This opens the interactive terminal interface.
+
+To run it without a global install:
+
+```console
+npx book-title-lookup
+```
 
 ## Command-line usage
 
 Search once and return JSON:
 
 ```console
-deno task start search --title 百年孤独 --json
+book-title search --title 百年孤独 --json
 ```
 
 Add filters when needed:
 
 ```console
-deno task start search --title 百年孤独 --author "Gabriel García Márquez" --language en
+book-title search --title 百年孤独 --author "Gabriel García Márquez" --language en
 ```
 
 List all commands and options:
 
 ```console
-deno task cli:help
+book-title --help
 ```
 
 ## Documentation
@@ -53,11 +59,15 @@ deno task cli:help
 ## Build from source
 
 ```console
-deno task build
+git clone https://github.com/FilthyS/book-title-lookup.git
+cd book-title-lookup
+npm ci
+npm run build
 ```
 
-The [GitHub Actions build workflow](https://github.com/FilthyS/book-title-lookup/actions/workflows/build.yml)
-also compiles Windows, Linux, and macOS binaries automatically.
+The build emits the self-contained Node.js executable
+`dist/book-title.js`. See the [development guide](./docs/development.md) for
+source commands and package verification.
 
 ## Credits
 

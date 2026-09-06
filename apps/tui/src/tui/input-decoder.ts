@@ -1,7 +1,7 @@
 // Raw keyboard byte-stream decoder for the thin renderer (promoted from the
 // issue #9 spike evidence).
 //
-// Deno.stdin in raw mode delivers bytes, not keys. This decoder maps UTF-8
+// A raw terminal stream delivers bytes, not keys. This decoder maps UTF-8
 // text plus the small control/CSI vocabulary a keyboard-first TUI needs into
 // tokens. It is stateful across chunk boundaries so a UTF-8 code point or an
 // escape sequence split between reads is reassembled. Chinese IME composition
@@ -34,7 +34,7 @@ const ESC = 0x1b;
 const DEL = 0x7f;
 
 /**
- * Deno reads a Windows console through its active legacy input code page.
+ * Node reads a Windows console through its active legacy input code page.
  * Simplified Chinese Windows installations default to CP936; GB18030 is its
  * compatible Encoding Standard decoder. Unix terminal streams remain UTF-8.
  */
