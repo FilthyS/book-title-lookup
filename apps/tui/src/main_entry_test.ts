@@ -16,6 +16,7 @@ import {
   joinPath,
   styleFromPlatform,
 } from "../../../packages/providers/src/platform/paths.ts";
+import { syncWriter } from "./main.ts";
 
 const ENTRY = new URL("./main.ts", import.meta.url).href;
 const VERSION_LINE = "book-title 0.1.0";
@@ -72,6 +73,30 @@ function scratchEnv(root: string): Record<string, string> {
     XDG_CACHE_HOME: joinPath(style, root, "local"),
   };
 }
+
+Deno.test("sync writer completes a frame after partial stream writes", async () => {
+  const chunks: Uint8Array[] = [];
+  const writer = syncWriter({
+    writeSync(data: Uint8Array): number {
+      const written = Math.min(7, data.length);
+      chunks.push(data.slice(0, written));
+      return written;
+    },
+  });
+  const frame = `${"┌─┐\r\n│ │\r\n└─┘\r\n".repeat(200)}↓ more title groups`;
+
+  await writer.write(frame);
+
+  const output = new Uint8Array(
+    chunks.reduce((length, chunk) => length + chunk.length, 0),
+  );
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.length;
+  }
+  assertEquals(new TextDecoder().decode(output), frame);
+});
 
 Deno.test("cli entry --version prints one stamp line and exits 0", async () => {
   const run = await runEntry(["--version"]);

@@ -34,12 +34,20 @@ import { defaultTerminalInputEncoding } from "./tui/input-decoder.ts";
 
 const encoder = new TextEncoder();
 
-function syncWriter(stream: {
+export function syncWriter(stream: {
   writeSync(data: Uint8Array): number;
 }): TextWriter {
   return {
     write(text: string): Promise<void> {
-      stream.writeSync(encoder.encode(text));
+      const data = encoder.encode(text);
+      let offset = 0;
+      while (offset < data.length) {
+        const written = stream.writeSync(data.subarray(offset));
+        if (written <= 0 || written > data.length - offset) {
+          throw new Error("The output stream did not accept written data.");
+        }
+        offset += written;
+      }
       return Promise.resolve();
     },
   };
