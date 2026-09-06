@@ -542,7 +542,7 @@ function entityReadPlan(ids: readonly string[]): RequestPlan<unknown> {
   url.searchParams.set("format", "json");
   url.searchParams.set("formatversion", "2");
   url.searchParams.set("ids", ids.join("|"));
-  url.searchParams.set("redirects", "1");
+  url.searchParams.set("redirects", "yes");
   url.searchParams.set("languages", LABEL_LANGUAGES.join("|"));
   url.searchParams.set("props", "labels|aliases|claims");
   return {

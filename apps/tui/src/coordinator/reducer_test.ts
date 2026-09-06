@@ -182,7 +182,7 @@ Deno.test("R9-R10 confirming a candidate resolves and, under lookup, starts titl
   assertEquals(resolved.screen, "titles_loading");
 });
 
-Deno.test("R14/R15 title outcomes reach the titles station without auto-translation", () => {
+Deno.test("R14/R15 title outcomes reach titles and can start a new search", () => {
   const candidates = drive(startedSearch(), [
     { type: "searchOutcome", requestId: "1", outcome: foundOutcome() },
   ]);
@@ -233,6 +233,15 @@ Deno.test("R14/R15 title outcomes reach the titles station without auto-translat
     assertEquals(titles.payload.status, "no_attested_titles");
     assertEquals(titles.notice?.messageKey, "titles.none");
   }
+  const restarted = update(titles, { type: "newSearch" });
+  assertEquals(restarted.effects, []);
+  assertEquals(restarted.next, {
+    screen: "query",
+    goal: { kind: "lookup" },
+    draft: emptyQueryDraft(),
+    targetLanguages: [],
+    notice: null,
+  });
 });
 
 Deno.test("C1-C3 cancel aborts, and late outcomes are dropped", () => {
