@@ -146,30 +146,14 @@ function groupDetailState(): SessionState {
   return drive(titlesState(), [{ type: "selectGroup", index: 0 }]);
 }
 
-Deno.test("query frame renders an exact snapshot with a caret", () => {
+Deno.test("query frame renders input without a separate cursor line", () => {
   const state = typeTitle(querySeed(), "百年孤独");
   const lines = renderFrame(state, SIZE_60x16);
   assertEquals(lines, [
     "Book Title Lookup",
     "Search: 百年孤独",
-    `${" ".repeat(15)}▕`,
     "Enter=search  Esc=quit  Ctrl+C=interrupt",
   ]);
-});
-
-Deno.test("query caret aligns with the right edge of the preceding cell", () => {
-  const state = typeTitle(querySeed(), "1984");
-  const lines = renderFrame(state, SIZE_60x16);
-  assertEquals(lines[1], "Search: 1984");
-  assertEquals(lines[2], `${" ".repeat(11)}▕`);
-});
-
-Deno.test("query caret keeps adjacent insertion boundaries visible", () => {
-  const typed = typeTitle(querySeed(), "1984");
-  const home = drive(typed, [{ type: "home" }]);
-  const right = drive(home, [{ type: "moveCursor", step: 1 }]);
-  assertEquals(renderFrame(home, SIZE_60x16)[2], `${" ".repeat(8)}▏`);
-  assertEquals(renderFrame(right, SIZE_60x16)[2], `${" ".repeat(8)}▕`);
 });
 
 Deno.test("cursor column accounts for double-width Chinese", () => {

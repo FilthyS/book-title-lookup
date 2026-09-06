@@ -3,7 +3,11 @@
 // escape/CSI reassembly across reads, and the control/arrow vocabulary.
 
 import { assertEquals } from "@std/assert";
-import { KeyDecoder, type Token } from "./input-decoder.ts";
+import {
+  defaultTerminalInputEncoding,
+  KeyDecoder,
+  type Token,
+} from "./input-decoder.ts";
 
 function decode(bytes: number[]): readonly Token[] {
   return new KeyDecoder().push(new Uint8Array(bytes));
@@ -43,6 +47,19 @@ Deno.test("UTF-8 code point split across chunks is reassembled", () => {
   const second = decoder.push(new Uint8Array(bytes.slice(2)));
   assertEquals(first, []);
   assertEquals(second, [{ kind: "text", value: "百" }]);
+});
+
+Deno.test("decoder transcodes CP936 Chinese input across chunks", () => {
+  const decoder = new KeyDecoder("gb18030");
+  assertEquals(decoder.push(new Uint8Array([0xd6])), []);
+  assertEquals(decoder.push(new Uint8Array([0xd0])), [
+    { kind: "text", value: "中" },
+  ]);
+});
+
+Deno.test("Windows Simplified Chinese terminals default to CP936-compatible decoding", () => {
+  assertEquals(defaultTerminalInputEncoding("windows", "zh-CN"), "gb18030");
+  assertEquals(defaultTerminalInputEncoding("linux", "zh-CN"), "utf-8");
 });
 
 Deno.test("invalid UTF-8 lead byte does not block later text", () => {

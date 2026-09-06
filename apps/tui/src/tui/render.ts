@@ -53,14 +53,6 @@ export function cursorColumn(state: SessionState): number {
   return prefix + before;
 }
 
-function caretLine(state: SessionState): string {
-  const column = cursorColumn(state);
-  if (state.draft.fields.title.cursor === 0) {
-    return `${" ".repeat(column)}▏`;
-  }
-  return `${" ".repeat(Math.max(0, column - 1))}▕`;
-}
-
 export function noticeLine(state: SessionState): string | null {
   switch (state.screen) {
     case "query":
@@ -168,7 +160,6 @@ function renderQuery(state: QueryState): readonly string[] {
   const lines: string[] = [
     TITLE,
     `Search: ${text}`,
-    caretLine(state),
     ...queryFilterLine(state),
     "Enter=search  Esc=quit  Ctrl+C=interrupt",
   ];

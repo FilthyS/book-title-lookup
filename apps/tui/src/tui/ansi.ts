@@ -21,6 +21,11 @@ export function enterAlternateScreen(): string {
   return ANSI.alternateScreenOn + ANSI.cursorHide;
 }
 
+/** Move the native cursor to a one-based terminal row and column. */
+export function moveCursorTo(row: number, column: number): string {
+  return `\x1b[${row};${column}H`;
+}
+
 /** Sequence written on every exit path to restore the terminal. */
 export function leaveAlternateScreen(): string {
   return ANSI.cursorShow + ANSI.alternateScreenOff + ANSI.reset;

@@ -57,11 +57,12 @@ class ScriptedCatalog implements BookTitleCatalog {
   }
 }
 
-function deferredIo() {
+function deferredIo(inputEncoding?: string) {
   let pending: ((value: Uint8Array | null) => void) | null = null;
   const writes: string[] = [];
   const raws: boolean[] = [];
   const io: TerminalIo = {
+    inputEncoding,
     read(): Promise<Uint8Array | null> {
       if (pending !== null) throw new Error("read overlap");
       return new Promise((resolve) => {
@@ -144,6 +145,40 @@ Deno.test("driver messageForToken maps keys to coordinator messages", () => {
 function allWrites(writes: readonly string[]): string {
   return writes.join("");
 }
+
+Deno.test("driver places the native cursor on the query input row", async () => {
+  const term = deferredIo();
+  const catalog = new ScriptedCatalog();
+  const run = runTuiSession({ io: term.io, catalog });
+
+  await sleep();
+  term.deliver([...encoder.encode("1984")]);
+  await sleep();
+
+  const repaint = term.writes.at(-1) ?? "";
+  assertStringIncludes(repaint, "Search: 1984");
+  assertEquals(repaint.endsWith("\x1b[2;13H\x1b[?25h"), true);
+
+  term.deliver([0x1b, 0x61]);
+  assertEquals(await run, 0);
+});
+
+Deno.test("driver accepts CP936 Chinese input on Windows terminals", async () => {
+  const term = deferredIo("gb18030");
+  const catalog = new ScriptedCatalog();
+  const run = runTuiSession({ io: term.io, catalog });
+
+  await sleep();
+  term.deliver([0xd6, 0xd0]); // 中 in CP936
+  await sleep();
+
+  const repaint = term.writes.at(-1) ?? "";
+  assertStringIncludes(repaint, "Search: 中");
+  assertEquals(repaint.endsWith("\x1b[2;11H\x1b[?25h"), true);
+
+  term.deliver([0x1b, 0x61]);
+  assertEquals(await run, 0);
+});
 
 Deno.test("driver runs a search to candidates and restores on interrupt", async () => {
   const term = deferredIo();
