@@ -37,16 +37,20 @@ function utf8Length(lead: number): number {
   if (lead < 0x80) {
     return 1;
   }
-  if (lead >= 0xc0 && lead <= 0xdf) {
+  if (lead >= 0xc2 && lead <= 0xdf) {
     return 2;
   }
   if (lead >= 0xe0 && lead <= 0xef) {
     return 3;
   }
-  if (lead >= 0xf0 && lead <= 0xf7) {
+  if (lead >= 0xf0 && lead <= 0xf4) {
     return 4;
   }
   return 0;
+}
+
+function isContinuation(byte: number): boolean {
+  return byte >= 0x80 && byte <= 0xbf;
 }
 
 export class KeyDecoder {
@@ -100,8 +104,28 @@ export class KeyDecoder {
         continue;
       }
       const length = utf8Length(first);
-      if (length === 0 || this.#pending.length < length) {
-        // Incomplete code point (or invalid lead); wait for the next chunk.
+      if (length === 0) {
+        this.#flushText(tokens);
+        this.#pending.shift();
+        tokens.push({ kind: "unknown" });
+        continue;
+      }
+      const available = Math.min(length, this.#pending.length);
+      let malformed = false;
+      for (let index = 1; index < available; index += 1) {
+        if (!isContinuation(this.#pending[index])) {
+          malformed = true;
+          break;
+        }
+      }
+      if (malformed) {
+        this.#flushText(tokens);
+        this.#pending.shift();
+        tokens.push({ kind: "unknown" });
+        continue;
+      }
+      if (this.#pending.length < length) {
+        // Incomplete code point; wait for the next chunk.
         break;
       }
       const bytes = this.#pending.splice(0, length);

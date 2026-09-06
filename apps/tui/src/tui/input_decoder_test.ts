@@ -45,6 +45,23 @@ Deno.test("UTF-8 code point split across chunks is reassembled", () => {
   assertEquals(second, [{ kind: "text", value: "百" }]);
 });
 
+Deno.test("invalid UTF-8 lead byte does not block later text", () => {
+  const decoder = new KeyDecoder();
+  assertEquals(decoder.push(new Uint8Array([0xff])), [{ kind: "unknown" }]);
+  assertEquals(decoder.push(new TextEncoder().encode("ok")), [
+    { kind: "text", value: "ok" },
+  ]);
+});
+
+Deno.test("invalid UTF-8 continuation does not block later text", () => {
+  const decoder = new KeyDecoder();
+  assertEquals(decoder.push(new Uint8Array([0xe4])), []);
+  assertEquals(decoder.push(new Uint8Array([0x41])), [
+    { kind: "unknown" },
+    { kind: "text", value: "A" },
+  ]);
+});
+
 Deno.test("control keys map to tokens", () => {
   assertEquals(tokenKinds(decode([0x03])), ["cancel"]);
   assertEquals(tokenKinds(decode([0x0d])), ["enter"]);

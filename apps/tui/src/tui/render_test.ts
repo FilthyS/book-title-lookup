@@ -152,9 +152,24 @@ Deno.test("query frame renders an exact snapshot with a caret", () => {
   assertEquals(lines, [
     "Book Title Lookup",
     "Search: 百年孤独",
-    `${" ".repeat(16)}|`,
+    `${" ".repeat(15)}▕`,
     "Enter=search  Esc=quit  Ctrl+C=interrupt",
   ]);
+});
+
+Deno.test("query caret aligns with the right edge of the preceding cell", () => {
+  const state = typeTitle(querySeed(), "1984");
+  const lines = renderFrame(state, SIZE_60x16);
+  assertEquals(lines[1], "Search: 1984");
+  assertEquals(lines[2], `${" ".repeat(11)}▕`);
+});
+
+Deno.test("query caret keeps adjacent insertion boundaries visible", () => {
+  const typed = typeTitle(querySeed(), "1984");
+  const home = drive(typed, [{ type: "home" }]);
+  const right = drive(home, [{ type: "moveCursor", step: 1 }]);
+  assertEquals(renderFrame(home, SIZE_60x16)[2], `${" ".repeat(8)}▏`);
+  assertEquals(renderFrame(right, SIZE_60x16)[2], `${" ".repeat(8)}▕`);
 });
 
 Deno.test("cursor column accounts for double-width Chinese", () => {
@@ -241,6 +256,17 @@ Deno.test("below-minimum size renders the resize message", () => {
     "Terminal too small: need at least 60x16.",
     "Current size: 40x10.",
     "Resize the window to continue.",
+  ]);
+});
+
+Deno.test("below-minimum frame fits within a tiny terminal width", () => {
+  const state = typeTitle(querySeed(), "百年孤独");
+  const lines = renderFrame(state, { columns: 10, rows: 5 });
+  assertEquals(lines, [
+    "Book Title",
+    "Terminal t",
+    "Current si",
+    "Resize the",
   ]);
 });
 
