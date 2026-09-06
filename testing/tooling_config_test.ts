@@ -26,7 +26,10 @@ test("Biome accepts this config when the checkout is nested under another root",
   try {
     await writeFile(
       join(fixtureRoot, "biome.json"),
-      JSON.stringify({ root: true }),
+      JSON.stringify({
+        root: true,
+        formatter: { indentStyle: "tab" },
+      }),
       "utf8",
     );
     await writeFile(
@@ -36,22 +39,33 @@ test("Biome accepts this config when the checkout is nested under another root",
     );
     await writeFile(
       join(nestedProject, "sample.js"),
-      "export const ok = true;\n",
+      "export const value = {\n  nested: true,\n};\n",
     );
 
-    const result = spawnSync(
+    const discovery = spawnSync(
       process.execPath,
       [biomeLauncher, "lint", "--diagnostic-level=error", "."],
       { cwd: nestedProject, encoding: "utf8" },
     );
     assert.equal(
-      result.status,
+      discovery.status,
       0,
-      `Biome rejected a nested checkout:\n${result.stdout}${result.stderr}`,
+      `Biome rejected a nested checkout:\n${discovery.stdout}${discovery.stderr}`,
     );
     assert.doesNotMatch(
-      `${result.stdout}${result.stderr}`,
+      `${discovery.stdout}${discovery.stderr}`,
       /nested root configuration/i,
+    );
+
+    const explicitConfig = spawnSync(
+      process.execPath,
+      [biomeLauncher, "format", "--config-path=biome.json", "sample.js"],
+      { cwd: nestedProject, encoding: "utf8" },
+    );
+    assert.equal(
+      explicitConfig.status,
+      0,
+      `Biome inherited formatting from outside the checkout:\n${explicitConfig.stdout}${explicitConfig.stderr}`,
     );
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
