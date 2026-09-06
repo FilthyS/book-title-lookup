@@ -91,6 +91,21 @@ export class KeyDecoder {
     }
   }
 
+  /** Whether one ESC byte is waiting to be distinguished from a CSI sequence. */
+  waitingForStandaloneEscape(): boolean {
+    return this.#pending.length === 1 && this.#pending[0] === ESC;
+  }
+
+  /**
+   * Resolve a lone ESC after the driver's short ambiguity window. Incomplete
+   * CSI/SS3 sequences remain buffered for their final byte.
+   */
+  flushStandaloneEscape(): readonly Token[] {
+    if (!this.waitingForStandaloneEscape()) return [];
+    this.#pending.shift();
+    return [{ kind: "escape" }];
+  }
+
   /** Decode one read chunk into zero or more tokens. */
   push(chunk: Uint8Array): readonly Token[] {
     if (this.#sourceDecoder !== undefined) {

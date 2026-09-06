@@ -21,8 +21,10 @@ import { TerminalController } from "./terminal.ts";
 import { ANSI, moveCursorTo } from "./ansi.ts";
 import {
   cursorColumn,
+  initialUiSelection,
   isTooSmall,
   renderFrame,
+  type UiLayout,
   type UiSelection,
 } from "./render.ts";
 import { padTo } from "./width.ts";
@@ -73,6 +75,8 @@ type RequestEffect = Extract<
   Effect,
   { readonly kind: "search" | "resolve" | "findTitles" }
 >;
+
+const ESCAPE_AMBIGUITY_MS = 20;
 
 function slotOf(effect: RequestEffect): "search" | "resolve" | "titles" {
   if (effect.kind === "search") return "search";
@@ -164,6 +168,7 @@ class InteractiveSession {
 
   #exitCode: number | undefined;
   #groupSelection = 0;
+  #layout: UiLayout = initialUiSelection.layout;
   #wasTitles = false;
 
   constructor(options: RunTuiOptions) {
@@ -249,8 +254,27 @@ class InteractiveSession {
   async #pullToken(): Promise<"token" | "eof"> {
     while (this.#tokens.length === 0 && !this.#inputEnded) {
       this.#readInFlight ??= this.#io.read();
-      const chunk = await this.#readInFlight;
-      this.#readInFlight = null;
+      const read = this.#readInFlight;
+      let chunk: Uint8Array | null;
+      if (this.#decoder.waitingForStandaloneEscape()) {
+        const next = await Promise.race([
+          read.then((value) => ({ kind: "read" as const, value })),
+          new Promise<{ readonly kind: "timeout" }>((resolve) =>
+            setTimeout(
+              () => resolve({ kind: "timeout" }),
+              ESCAPE_AMBIGUITY_MS,
+            )
+          ),
+        ]);
+        if (next.kind === "timeout") {
+          this.#tokens.push(...this.#decoder.flushStandaloneEscape());
+          continue;
+        }
+        chunk = next.value;
+      } else {
+        chunk = await read;
+      }
+      if (this.#readInFlight === read) this.#readInFlight = null;
       if (chunk === null) {
         this.#inputEnded = true;
         return "eof";
@@ -415,6 +439,14 @@ class InteractiveSession {
   // -------------------------------------------------------------------------
 
   #handleToken(token: Token): void {
+    if (
+      token.kind === "tab" &&
+      (this.#state.screen === "candidates" || this.#state.screen === "titles")
+    ) {
+      this.#layout = this.#layout === "stacked" ? "compact" : "stacked";
+      this.#paint();
+      return;
+    }
     // Driver-local selections that are not reducer state.
     if (
       (token.kind === "up" || token.kind === "down") &&
@@ -450,7 +482,10 @@ class InteractiveSession {
 
   #paint(): void {
     const size = this.#io.size();
-    const selection: UiSelection = { groups: this.#groupSelection };
+    const selection: UiSelection = {
+      groups: this.#groupSelection,
+      layout: this.#layout,
+    };
     const frame = renderFrame(this.#state, size, selection)
       .map((line) => padTo(line, size.columns))
       .join("\r\n");

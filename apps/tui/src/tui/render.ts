@@ -18,7 +18,7 @@ import type {
   TitlesLoadingState,
   TitlesState,
 } from "../coordinator/state.ts";
-import { clustersOf, measureWidth, truncateTo } from "./width.ts";
+import { clustersOf, measureWidth, padTo, truncateTo } from "./width.ts";
 import type { TerminalSize } from "./terminal.ts";
 
 /** Minimum supported terminal size from docs/product-spec.md. */
@@ -28,11 +28,17 @@ export const MIN_ROWS = 16;
 const TITLE = "Book Title Lookup";
 
 /** Driver-local selection used to place markers on list stations. */
+export type UiLayout = "stacked" | "compact";
+
 export interface UiSelection {
   readonly groups: number;
+  readonly layout: UiLayout;
 }
 
-export const initialUiSelection: UiSelection = Object.freeze({ groups: 0 });
+export const initialUiSelection: UiSelection = Object.freeze({
+  groups: 0,
+  layout: "stacked",
+});
 
 export function isTooSmall(size: TerminalSize): boolean {
   return size.columns < MIN_COLUMNS || size.rows < MIN_ROWS;
@@ -122,11 +128,12 @@ interface VisibleWindow<T> {
 function visibleWindow<T>(
   items: readonly T[],
   selected: number,
+  limit = MAX_LIST,
 ): VisibleWindow<T> {
   const anchor = Math.max(0, Math.min(selected, items.length - 1));
-  const latestStart = Math.max(0, items.length - MAX_LIST);
-  const start = Math.min(Math.max(0, anchor - MAX_LIST + 1), latestStart);
-  const end = Math.min(items.length, start + MAX_LIST);
+  const latestStart = Math.max(0, items.length - limit);
+  const start = Math.min(Math.max(0, anchor - limit + 1), latestStart);
+  const end = Math.min(items.length, start + limit);
   return {
     items: items.slice(start, end),
     start,
@@ -146,20 +153,54 @@ function hiddenItemsLine(
   return `  ${arrow} ${count} ${position} ${label}`;
 }
 
+function visibleItemLimit(
+  size: TerminalSize,
+  rowsPerItem: number,
+  extraRows = 0,
+): number {
+  // Header, optional up/down overflow markers, and the key-hint footer.
+  const reservedRows = 6 + extraRows;
+  return Math.max(
+    1,
+    Math.min(MAX_LIST, Math.floor((size.rows - reservedRows) / rowsPerItem)),
+  );
+}
+
+function boxTop(label: string, width: number): string {
+  const available = Math.max(0, width - 2);
+  const decorated = truncateTo(` ${label} `, available);
+  return `┌${decorated}${
+    "─".repeat(Math.max(0, available - measureWidth(decorated)))
+  }┐`;
+}
+
+function boxRow(content: string, width: number): string {
+  const innerWidth = Math.max(0, width - 4);
+  return `│ ${padTo(truncateTo(content, innerWidth), innerWidth)} │`;
+}
+
+function boxBottom(width: number): string {
+  return `└${"─".repeat(Math.max(0, width - 2))}┘`;
+}
+
+function otherLayout(layout: UiLayout): UiLayout {
+  return layout === "stacked" ? "compact" : "stacked";
+}
+
 /** Render one frame as content lines for the requested terminal size. */
 export function renderFrame(
   state: SessionState,
-  _size: TerminalSize,
+  size: TerminalSize,
   selection: UiSelection = initialUiSelection,
 ): readonly string[] {
-  if (isTooSmall(_size)) {
+  if (isTooSmall(size)) {
     const lines = [
       TITLE,
       `Terminal too small: need at least ${MIN_COLUMNS}x${MIN_ROWS}.`,
-      `Current size: ${_size.columns}x${_size.rows}.`,
+      `Current size: ${size.columns}x${size.rows}.`,
       "Resize the window to continue.",
     ];
-    return lines.map((line) => truncateTo(line, Math.max(0, _size.columns)));
+    return lines.map((line) => truncateTo(line, Math.max(0, size.columns)));
   }
   switch (state.screen) {
     case "query":
@@ -167,7 +208,7 @@ export function renderFrame(
     case "searching":
       return renderSearching(state);
     case "candidates":
-      return renderCandidates(state);
+      return renderCandidates(state, size, selection.layout);
     case "resolving":
       return renderResolving(state);
     case "resolved":
@@ -175,7 +216,7 @@ export function renderFrame(
     case "titles_loading":
       return renderTitlesLoading(state);
     case "titles":
-      return renderTitles(state, selection);
+      return renderTitles(state, size, selection);
     case "group_detail":
       return renderGroupDetail(state);
   }
@@ -216,10 +257,24 @@ function renderSearching(state: SearchingState): readonly string[] {
   ];
 }
 
-function renderCandidates(state: CandidatesState): readonly string[] {
-  const lines: string[] = [TITLE, "Work candidates:"];
+function renderCandidates(
+  state: CandidatesState,
+  size: TerminalSize,
+  layout: UiLayout,
+): readonly string[] {
+  const lines: string[] = [
+    TITLE,
+    `Query: ${titleText(state)}`,
+    `Work candidates — ${layout} layout`,
+  ];
   const rows = state.pool.rows;
-  const window = visibleWindow(rows, state.selected);
+  const notice = noticeLine(state);
+  const rowsPerItem = layout === "stacked" ? 4 : 1;
+  const window = visibleWindow(
+    rows,
+    state.selected,
+    visibleItemLimit(size, rowsPerItem, notice === null ? 0 : 1),
+  );
   if (window.before > 0) {
     lines.push(hiddenItemsLine("up", window.before, "candidate"));
   }
@@ -229,18 +284,31 @@ function renderCandidates(state: CandidatesState): readonly string[] {
     const marker = index === state.selected ? ">" : " ";
     const authors = row.authors.join(", ");
     const langs = row.contentLanguages.join("/");
-    lines.push(
-      `${marker} ${index + 1}. ${row.title}${
-        authors === "" ? "" : ` — ${authors}`
-      }`,
-    );
-    if (langs !== "") lines.push(`    (${langs})`);
+    if (layout === "stacked") {
+      const details = [authors, langs].filter((part) => part !== "").join(
+        " · ",
+      );
+      lines.push(
+        boxTop(`${marker} ${index + 1}`, size.columns),
+        boxRow(row.title, size.columns),
+        boxRow(details, size.columns),
+        boxBottom(size.columns),
+      );
+    } else {
+      lines.push(
+        `${marker} ${index + 1}. ${row.title}${
+          authors === "" ? "" : ` — ${authors}`
+        }${langs === "" ? "" : `  [${langs}]`}`,
+      );
+    }
   }
   if (window.after > 0) {
     lines.push(hiddenItemsLine("down", window.after, "candidate"));
   }
-  lines.push("Up/Down=select Enter=confirm N=new search Esc=back ^C=quit");
-  const notice = noticeLine(state);
+  lines.push(
+    `Up/Down=select Enter=confirm Tab=${otherLayout(layout)} ` +
+      "N=new search Esc=back ^C=quit",
+  );
   if (notice !== null) lines.push(notice);
   return lines;
 }
@@ -285,14 +353,22 @@ function renderTitlesLoading(_state: TitlesLoadingState): readonly string[] {
 
 function renderTitles(
   state: TitlesState,
+  size: TerminalSize,
   selection: UiSelection,
 ): readonly string[] {
   const groups = state.payload.groups;
+  const notice = noticeLine(state);
   const lines: string[] = [
     TITLE,
     `Title groups for '${state.snapshot.work.title}':`,
+    `${selection.layout === "stacked" ? "Stacked" : "Compact"} layout`,
   ];
-  const window = visibleWindow(groups, selection.groups);
+  const rowsPerItem = selection.layout === "stacked" ? 3 : 1;
+  const window = visibleWindow(
+    groups,
+    selection.groups,
+    visibleItemLimit(size, rowsPerItem, notice === null ? 0 : 1),
+  );
   if (window.before > 0) {
     lines.push(hiddenItemsLine("up", window.before, "title group"));
   }
@@ -305,14 +381,29 @@ function renderTitles(
       group.level,
       group.originalTitle ? "original" : "",
     ].filter((part) => part !== "").join(" ");
-    lines.push(`${marker} ${index + 1}. ${group.title}  [${flags}]`);
+    if (selection.layout === "stacked") {
+      const stackedFlags = [
+        group.language,
+        group.level,
+        group.originalTitle ? "original" : "",
+      ].filter((part) => part !== "").join(" · ");
+      lines.push(
+        boxTop(`${marker} ${index + 1} · ${stackedFlags}`, size.columns),
+        boxRow(group.title, size.columns),
+        boxBottom(size.columns),
+      );
+    } else {
+      lines.push(`${marker} ${index + 1}. ${group.title}  [${flags}]`);
+    }
   }
   if (groups.length === 0) lines.push("(no groups listed)");
   if (window.after > 0) {
     lines.push(hiddenItemsLine("down", window.after, "title group"));
   }
-  lines.push("Up/Down=select Enter=detail N=new search Esc=back ^C=quit");
-  const notice = noticeLine(state);
+  lines.push(
+    `Up/Down=select Enter=detail Tab=${otherLayout(selection.layout)} ` +
+      "N=new search Esc=back ^C=quit",
+  );
   if (notice !== null) lines.push(notice);
   return lines;
 }

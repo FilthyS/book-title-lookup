@@ -225,12 +225,53 @@ Deno.test("driver runs a search to candidates and restores on interrupt", async 
   assertEquals(code, 130);
   const output = allWrites(term.writes);
   assertStringIncludes(output, "Search: 百年孤独");
-  assertStringIncludes(output, "Work candidates:");
+  assertStringIncludes(output, "Work candidates — stacked layout");
   assertStringIncludes(output, "小王子");
   // Acquire then restore raw mode.
   assertEquals(term.raws, [true, false]);
   // Terminal was restored after the session ran.
   assertEquals(output.endsWith("\x1b[?25h\x1b[?1049l\x1b[0m"), true);
+});
+
+Deno.test("driver switches the production candidate layout with Tab", async () => {
+  const term = deferredIo();
+  const catalog = new ScriptedCatalog();
+  const run = runTuiSession({ io: term.io, catalog });
+
+  await sleep();
+  term.deliver([...encoder.encode("百年孤独"), 0x0d]);
+  await sleep();
+  catalog.pendingSearches[0].resolve(foundOutcome());
+  await sleep();
+
+  assertStringIncludes(term.writes.at(-1) ?? "", "stacked layout");
+  term.deliver([0x09]); // Tab => compact layout
+  await sleep();
+  assertStringIncludes(term.writes.at(-1) ?? "", "compact layout");
+
+  term.deliver([0x03]);
+  assertEquals(await run, 130);
+});
+
+Deno.test("driver handles a standalone Esc without waiting for another key", async () => {
+  const term = deferredIo();
+  const catalog = new ScriptedCatalog();
+  const run = runTuiSession({ io: term.io, catalog });
+
+  await sleep();
+  term.deliver([...encoder.encode("百年孤独"), 0x0d]);
+  await sleep();
+  catalog.pendingSearches[0].resolve(foundOutcome());
+  await sleep();
+
+  term.deliver([0x1b]);
+  await sleep(50);
+  const repaintAfterEsc = term.writes.at(-1) ?? "";
+
+  term.deliver([0x03]);
+  assertEquals(await run, 130);
+  assertStringIncludes(repaintAfterEsc, "Search: 百年孤独");
+  assertEquals(repaintAfterEsc.includes("Work candidates"), false);
 });
 
 Deno.test("driver dispatches interrupt from an injected OS signal abort", async () => {

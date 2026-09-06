@@ -230,19 +230,41 @@ Deno.test("searching frame shows progress and no caret", () => {
 Deno.test("candidates frame renders an exact snapshot", () => {
   const lines = renderFrame(candidatesState(), SIZE_60x16);
   assertEquals(lines[0], "Book Title Lookup");
-  assertEquals(lines[1], "Work candidates:");
-  assertEquals(lines[2], "> 1. 百年孤独 — Gabriel García Márquez");
-  assertEquals(lines[3], "    (zh)");
+  assertEquals(lines[1], "Query: 百年孤独");
+  assertEquals(lines[2], "Work candidates — stacked layout");
+  assertEquals(lines[3].startsWith("┌ > 1 "), true);
+  assertEquals(lines[4].includes("百年孤独"), true);
+  assertEquals(lines[5].includes("Gabriel García Márquez · zh"), true);
   assertEquals(
-    lines[4],
-    "  2. One Hundred Years of Solitude — Gabriel García Márquez",
+    lines.some((line) => line.includes("One Hundred Years of Solitude")),
+    true,
   );
   assertEquals(
     lines.includes(
-      "Up/Down=select Enter=confirm N=new search Esc=back ^C=quit",
+      "Up/Down=select Enter=confirm Tab=compact N=new search Esc=back ^C=quit",
     ),
     true,
   );
+});
+
+Deno.test("candidate page offers structurally distinct stacked and compact layouts", () => {
+  const state = candidatesState();
+  const stacked = renderFrame(state, SIZE_60x16, {
+    groups: 0,
+    layout: "stacked",
+  });
+  const compact = renderFrame(state, SIZE_60x16, {
+    groups: 0,
+    layout: "compact",
+  });
+
+  assertEquals(stacked.some((line) => line.startsWith("┌ > 1 ")), true);
+  assertEquals(
+    compact.includes("> 1. 百年孤独 — Gabriel García Márquez  [zh]"),
+    true,
+  );
+  assertEquals(compact.some((line) => line.startsWith("┌ > 1 ")), false);
+  assertEquals(stacked.join("\n") === compact.join("\n"), false);
 });
 
 Deno.test("candidate list scrolls to keep an item beyond the first ten visible", () => {
@@ -256,7 +278,10 @@ Deno.test("candidate list scrolls to keep an item beyond the first ten visible",
   assertEquals(state.screen, "candidates");
   if (state.screen !== "candidates") throw new Error("expected candidates");
   assertEquals(state.selected, 10);
-  const lines = renderFrame(state, SIZE_60x16);
+  const lines = renderFrame(state, SIZE_60x16, {
+    groups: 0,
+    layout: "compact",
+  });
   assertEquals(
     lines.includes("> 11. Candidate 11 — Author 11"),
     true,
@@ -267,6 +292,22 @@ Deno.test("candidate list scrolls to keep an item beyond the first ten visible",
     lines.some((line) => line.startsWith("  1. Candidate 1")),
     false,
   );
+});
+
+Deno.test("stacked candidate list scrolls within the terminal height", () => {
+  const state = drive(
+    manyCandidatesState(12),
+    Array.from({ length: 10 }, () => ({
+      type: "moveSelection",
+      step: 1,
+    })),
+  );
+  const lines = renderFrame(state, SIZE_60x16, {
+    groups: 0,
+    layout: "stacked",
+  });
+  assertEquals(lines.some((line) => line.startsWith("┌ > 11 ")), true);
+  assertEquals(lines.length <= SIZE_60x16.rows, true);
 });
 
 Deno.test("resolved frame shows the work under goal lookup with a titles hint", () => {
@@ -286,12 +327,16 @@ Deno.test("resolved frame shows the work under goal lookup with a titles hint", 
 
 Deno.test("titles frame lists groups with the selection marker", () => {
   const state = titlesState();
-  const selection: UiSelection = { groups: 0 };
+  const selection: UiSelection = { groups: 0, layout: "stacked" };
   const lines = renderFrame(state, SIZE_60x16, selection);
   assertEquals(lines[1], "Title groups for 'One Hundred Years of Solitude':");
-  assertEquals(lines[2].startsWith("> 1. Cien años de soledad"), true);
+  assertEquals(lines[2], "Stacked layout");
+  assertEquals(lines[3].startsWith("┌ > 1 · es · verified "), true);
+  assertEquals(lines[4].includes("Cien años de soledad"), true);
   assertEquals(
-    lines.includes("Up/Down=select Enter=detail N=new search Esc=back ^C=quit"),
+    lines.includes(
+      "Up/Down=select Enter=detail Tab=compact N=new search Esc=back ^C=quit",
+    ),
     true,
   );
 });
@@ -300,7 +345,7 @@ Deno.test("title list scrolls to keep an item beyond the first ten visible", () 
   const lines = renderFrame(
     manyTitlesState(12),
     SIZE_60x16,
-    { groups: 10 },
+    { groups: 10, layout: "compact" },
   );
   assertEquals(
     lines.some((line) => line.startsWith("> 11. Title 11")),
@@ -309,6 +354,16 @@ Deno.test("title list scrolls to keep an item beyond the first ten visible", () 
   assertEquals(lines.includes("  ↑ 1 earlier title group"), true);
   assertEquals(lines.includes("  ↓ 1 more title group"), true);
   assertEquals(lines.some((line) => line.startsWith("  1. Title 1")), false);
+});
+
+Deno.test("stacked title list scrolls within the terminal height", () => {
+  const lines = renderFrame(
+    manyTitlesState(12),
+    SIZE_60x16,
+    { groups: 10, layout: "stacked" },
+  );
+  assertEquals(lines.some((line) => line.startsWith("┌ > 11 ·")), true);
+  assertEquals(lines.length <= SIZE_60x16.rows, true);
 });
 
 Deno.test("group_detail frame expands the selected group", () => {

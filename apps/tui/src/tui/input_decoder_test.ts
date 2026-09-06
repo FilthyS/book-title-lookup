@@ -131,6 +131,14 @@ Deno.test("standalone escape is reported after the next byte", () => {
   assertEquals(tokenKinds(tokens), ["escape", "text"]);
 });
 
+Deno.test("standalone escape can be flushed after the CSI ambiguity window", () => {
+  const decoder = new KeyDecoder();
+  assertEquals(decoder.push(new Uint8Array([ESC()])), []);
+  assertEquals(decoder.waitingForStandaloneEscape(), true);
+  assertEquals(decoder.flushStandaloneEscape(), [{ kind: "escape" }]);
+  assertEquals(decoder.waitingForStandaloneEscape(), false);
+});
+
 Deno.test("text around controls is flushed in order", () => {
   const encoder = new TextEncoder();
   const tokens = decode([

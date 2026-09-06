@@ -86,25 +86,16 @@ The coordinator-authorized live smoke test contacts Open Library:
 deno task test:live-smoke
 ```
 
-## TUI layout prototype
+## TUI layouts
 
-The throwaway terminal-native layout comparison is intentionally separate from
-the production renderer:
+Candidate and title-group screens provide two terminal-native layouts:
 
-```console
-deno task prototype:tui
-```
+- `stacked` is the default and separates each choice with box-drawing lines;
+- `compact` shows one condensed row per choice.
 
-Use `1`, `2`, and `3` or the Left/Right keys to switch layouts. Use Up/Down to
-select a candidate and Enter to inspect the sample title groups. The prototype
-uses only text, box-drawing characters, and basic ANSI emphasis; it performs no
-network requests.
-
-Print all candidate layouts without entering raw terminal mode:
-
-```console
-deno task prototype:tui -- --print
-```
+Press `Tab` on either screen to switch layouts for the current session. Both
+layouts scroll around the active selection when the result set is larger than
+the available terminal space.
 
 ## Build a native binary
 
