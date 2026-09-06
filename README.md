@@ -114,6 +114,18 @@ $env:BOOK_TITLE_CACHE_DIR="./cache-tmp"; $env:BOOK_TITLE_CONTACT="you@example.co
 deno run --allow-net=openlibrary.org apps/tui/src/main.ts search --title 百年孤独 --json
 ```
 
+### Throwaway mobile UI prototype
+
+Compare three mobile lookup flows at `http://127.0.0.1:4173/?variant=A`:
+
+```console
+deno task prototype:mobile
+```
+
+Use the floating arrows (or the keyboard arrow keys) to switch between the
+guided path, focus deck, and evidence map. This prototype uses in-memory sample
+data and is not production application code.
+
 ### Distribution (build only; never publishes)
 
 The distribution slice packages the application as release-shaped artifacts
